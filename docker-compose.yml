@@ -1,0 +1,198 @@
+services:
+
+  # ─── NGINX ────────────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: verdeo_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./laravel:/var/www/html
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - certbot_data:/etc/letsencrypt
+    depends_on:
+      - laravel-app
+    networks:
+      - verdeo_net
+
+  # ─── LARAVEL (PHP-FPM) ────────────────────────────────────────────────────
+  laravel-app:
+    build:
+      context: ./laravel
+      dockerfile: Dockerfile
+    container_name: verdeo_laravel
+    restart: unless-stopped
+    volumes:
+      - ./laravel:/var/www/html
+    environment:
+      - APP_ENV=${APP_ENV}
+      - APP_KEY=${APP_KEY}
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - OLLAMA_URL=http://ollama:11434
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - verdeo_net
+
+  # ─── MYSQL ────────────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: verdeo_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - /mnt/d/verdeo-docker/mysql:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - verdeo_net
+
+  # ─── REDIS ────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:alpine
+    container_name: verdeo_redis
+    restart: unless-stopped
+    volumes:
+      - /mnt/d/verdeo-docker/redis:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - verdeo_net
+
+  # ─── N8N ──────────────────────────────────────────────────────────────────
+  n8n:
+    image: n8nio/n8n
+    container_name: verdeo_n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=${N8N_HOST}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://${N8N_HOST}:5678
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
+      - DB_TYPE=mysqldb
+      - DB_MYSQLDB_HOST=mysql
+      - DB_MYSQLDB_PORT=3306
+      - DB_MYSQLDB_DATABASE=${N8N_DB}
+      - DB_MYSQLDB_USER=${DB_USERNAME}
+      - DB_MYSQLDB_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - /mnt/d/verdeo-docker/n8n:/home/node/.n8n
+      - ./n8n/workflows:/workflows
+    depends_on:
+      - mysql
+    networks:
+      - verdeo_net
+
+  # ─── EVOLUTION API (WHATSAPP) ─────────────────────────────────────────────
+  evolution-api:
+    image: atendai/evolution-api:latest
+    container_name: verdeo_evolution
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_URL=http://evolution-api:8080
+      - AUTHENTICATION_TYPE=apikey
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
+      - DATABASE_ENABLED=true
+      - DATABASE_CONNECTION_URI=mysql://${DB_USERNAME}:${DB_PASSWORD}@mysql:3306/${DB_DATABASE}
+      - REDIS_ENABLED=true
+      - REDIS_URI=redis://redis:6379
+    volumes:
+      - /mnt/d/verdeo-docker/evolution:/evolution/instances
+      - ./evolution-api/config:/evolution/config
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - verdeo_net
+
+  # ─── OLLAMA (IA LOCAL — MISTRAL 7B) ───────────────────────────────────────
+  ollama:
+    image: ollama/ollama
+    container_name: verdeo_ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - /mnt/d/verdeo-docker/ollama:/root/.ollama
+    networks:
+      - verdeo_net
+
+  # ─── QUEUE WORKER (LARAVEL HORIZON) ───────────────────────────────────────
+  queue-worker:
+    build:
+      context: ./laravel
+      dockerfile: Dockerfile
+    container_name: verdeo_queue
+    restart: unless-stopped
+    command: php artisan horizon
+    volumes:
+      - ./laravel:/var/www/html
+    environment:
+      - APP_ENV=${APP_ENV}
+      - DB_HOST=mysql
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - verdeo_net
+
+  # ─── SCHEDULER (LARAVEL CRON) ─────────────────────────────────────────────
+  scheduler:
+    build:
+      context: ./laravel
+      dockerfile: Dockerfile
+    container_name: verdeo_scheduler
+    restart: unless-stopped
+    command: >
+      sh -c "while true; do
+        php artisan schedule:run --verbose --no-interaction &
+        sleep 60
+      done"
+    volumes:
+      - ./laravel:/var/www/html
+    environment:
+      - APP_ENV=${APP_ENV}
+      - DB_HOST=mysql
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - verdeo_net
+
+# ─── NETWORKS ─────────────────────────────────────────────────────────────────
+networks:
+  verdeo_net:
+    driver: bridge
+
+# ─── VOLUMES ──────────────────────────────────────────────────────────────────
+volumes:
+  certbot_data:
+    driver: local

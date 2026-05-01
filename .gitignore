@@ -1,0 +1,38 @@
+# Entorno
+.env
+.env.backup
+*.env
+
+# Laravel
+laravel/vendor/
+laravel/node_modules/
+laravel/storage/logs/*
+laravel/storage/framework/cache/*
+laravel/storage/framework/sessions/*
+laravel/storage/framework/views/*
+laravel/.phpunit.result.cache
+laravel/bootstrap/cache/*
+
+# Docker — datos persistentes (van en el HDD)
+mysql-data/
+redis-data/
+n8n-data/
+ollama-data/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Certificados SSL
+certbot/

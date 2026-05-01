@@ -1,0 +1,31 @@
+FROM php:8.3-fpm
+
+RUN apt-get update && apt-get install -y \
+    git curl zip unzip libpng-dev libonig-dev \
+    libxml2-dev libzip-dev libfreetype6-dev \
+    libjpeg62-turbo-dev libssl-dev default-mysql-client \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN docker-php-ext-install \
+    pdo pdo_mysql mbstring exif pcntl bcmath zip opcache
+
+RUN docker-php-ext-configure gd \
+    --with-freetype --with-jpeg \
+    && docker-php-ext-install gd
+
+RUN pecl install redis && docker-php-ext-enable redis
+
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+RUN echo "opcache.enable=1" >> /usr/local/etc/php/conf.d/opcache.ini \
+    && echo "opcache.memory_consumption=256" >> /usr/local/etc/php/conf.d/opcache.ini \
+    && echo "opcache.max_accelerated_files=20000" >> /usr/local/etc/php/conf.d/opcache.ini \
+    && echo "opcache.validate_timestamps=1" >> /usr/local/etc/php/conf.d/opcache.ini
+
+WORKDIR /var/www/html
+
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 755 /var/www/html
+
+EXPOSE 9000
+CMD ["php-fpm"]
