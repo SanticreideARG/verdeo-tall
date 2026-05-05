@@ -1,0 +1,456 @@
+/* ================================================================
+   VERDEO — Filament v3 Skin
+   Drop-in CSS theme for Filament PHP dashboards.
+   Brand: dark navy + verde Verdeo + glassmorphism + particle bg.
+
+   Install (Filament v3):
+   1. Copy this file to: resources/css/filament/admin/verdeo.css
+   2. In your AdminPanelProvider->panel():
+        ->viteTheme('resources/css/filament/admin/theme.css')
+      and import this from theme.css:
+        @import 'verdeo.css';
+   3. Optionally add the particle <canvas id="verdeo-bg"></canvas>
+      via a render hook (PANELS_BODY_START) to enable bg animation.
+   ================================================================ */
+
+/* ── Brand tokens ────────────────────────────────────────────── */
+:root {
+  --verdeo-navy:       #0b1828;
+  --verdeo-navy-2:     #0f2035;
+  --verdeo-navy-3:     #16294a;
+  --verdeo-green:      #3a7d44;
+  --verdeo-green-lt:   #4e9e5a;
+  --verdeo-green-xlt:  #6dbf7a;
+  --verdeo-gold:       #c8a030;
+  --verdeo-white:      #f0f4f0;
+  --verdeo-muted:      rgba(240, 244, 240, 0.55);
+  --verdeo-muted-2:    rgba(240, 244, 240, 0.35);
+  --verdeo-glass:      rgba(11, 24, 40, 0.72);
+  --verdeo-glass-2:    rgba(15, 32, 53, 0.85);
+  --verdeo-bdr:        rgba(58, 125, 68, 0.30);
+  --verdeo-bdr-soft:   rgba(255, 255, 255, 0.08);
+  --verdeo-shadow:     0 16px 50px rgba(0, 0, 0, 0.45);
+  --verdeo-glow:       0 0 30px rgba(78, 158, 90, 0.25);
+}
+
+/* Override Filament's Tailwind primary palette (oklch optional) */
+:root, .dark {
+  --primary-50:  240 247 240;
+  --primary-100: 215 235 218;
+  --primary-200: 173 215 180;
+  --primary-300: 130 195 142;
+  --primary-400:  98 178 113;
+  --primary-500:  78 158  90;   /* main verdeo green */
+  --primary-600:  58 125  68;
+  --primary-700:  45  98  54;
+  --primary-800:  33  72  40;
+  --primary-900:  22  48  27;
+  --primary-950:  12  28  16;
+
+  --gray-50:  240 247 245;
+  --gray-100: 218 226 230;
+  --gray-200: 180 195 205;
+  --gray-300: 140 158 170;
+  --gray-400: 105 122 135;
+  --gray-500:  74  90 105;
+  --gray-600:  46  60  75;
+  --gray-700:  28  42  58;
+  --gray-800:  18  30  46;
+  --gray-900:  11  24  40;
+  --gray-950:   6  16  28;
+}
+
+/* ── Global font ─────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap');
+
+html, body, .fi-body {
+  font-family: 'Barlow', system-ui, -apple-system, sans-serif !important;
+  letter-spacing: 0.1px;
+}
+
+.fi-topbar h1, .fi-topbar h2,
+.fi-section-header-heading,
+.fi-header-heading,
+.fi-stats-overview-stat-value,
+.fi-modal-heading {
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif !important;
+  letter-spacing: 0.5px;
+}
+
+/* ── Background: navy + animated particle layer ──────────────── */
+body, .fi-body, .fi-main-ctn, .fi-layout {
+  background: var(--verdeo-navy) !important;
+  color: var(--verdeo-white);
+}
+
+/* Subtle radial vignette so content pops */
+.fi-body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 20% 0%, rgba(58,125,68,0.14), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 90% 90%, rgba(78,158,90,0.10), transparent 55%);
+}
+
+/* Particle canvas (optional) sits behind everything */
+#verdeo-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.fi-layout, .fi-main, .fi-page, .fi-sidebar, .fi-topbar {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────── */
+.fi-sidebar {
+  background: linear-gradient(180deg, rgba(11,24,40,0.92), rgba(15,32,53,0.88)) !important;
+  border-right: 1px solid var(--verdeo-bdr) !important;
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  box-shadow: 4px 0 30px rgba(0, 0, 0, 0.4);
+}
+
+.fi-sidebar-header {
+  border-bottom: 1px solid var(--verdeo-bdr-soft) !important;
+  padding: 20px 16px !important;
+}
+
+.fi-sidebar-nav-groups {
+  padding: 12px 8px !important;
+}
+
+.fi-sidebar-group-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1.6px !important;
+  text-transform: uppercase;
+  color: var(--verdeo-muted) !important;
+  padding: 14px 14px 8px !important;
+}
+
+.fi-sidebar-item-button {
+  border-radius: 10px !important;
+  padding: 10px 14px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: var(--verdeo-muted) !important;
+  transition: all 0.2s ease !important;
+  margin-bottom: 2px;
+  border: 1px solid transparent;
+}
+
+.fi-sidebar-item-button:hover {
+  background: rgba(58, 125, 68, 0.12) !important;
+  color: var(--verdeo-white) !important;
+  border-color: rgba(58, 125, 68, 0.25) !important;
+  transform: translateX(2px);
+}
+
+.fi-sidebar-item-active .fi-sidebar-item-button,
+.fi-sidebar-item-button[aria-current="page"] {
+  background: linear-gradient(135deg, rgba(58,125,68,0.25), rgba(78,158,90,0.18)) !important;
+  color: var(--verdeo-white) !important;
+  border-color: rgba(78, 158, 90, 0.45) !important;
+  box-shadow: 0 2px 14px rgba(58, 125, 68, 0.25),
+              inset 0 0 0 1px rgba(78, 158, 90, 0.15);
+}
+
+.fi-sidebar-item-icon {
+  color: var(--verdeo-green-lt) !important;
+}
+
+/* ── Topbar ─────────────────────────────────────────────────── */
+.fi-topbar {
+  background: rgba(11, 24, 40, 0.6) !important;
+  border-bottom: 1px solid var(--verdeo-bdr) !important;
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+}
+
+.fi-topbar nav, .fi-topbar [aria-label="Breadcrumb"] {
+  color: var(--verdeo-muted) !important;
+}
+
+.fi-topbar input, .fi-global-search-field input {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--verdeo-bdr-soft) !important;
+  color: var(--verdeo-white) !important;
+  border-radius: 10px !important;
+}
+
+.fi-topbar input:focus, .fi-global-search-field input:focus {
+  border-color: var(--verdeo-green-lt) !important;
+  box-shadow: 0 0 0 3px rgba(58, 125, 68, 0.18) !important;
+}
+
+/* ── Cards / sections / glass panels ────────────────────────── */
+.fi-section,
+.fi-wi-stats-overview-stat,
+.fi-card,
+.fi-modal-window,
+.fi-fo-component-ctn .fi-section {
+  background: var(--verdeo-glass) !important;
+  border: 1px solid var(--verdeo-bdr) !important;
+  border-radius: 16px !important;
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  box-shadow: var(--verdeo-shadow) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Accent line at top of cards */
+.fi-section::before,
+.fi-wi-stats-overview-stat::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 12%; right: 12%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(78,158,90,0.6), transparent);
+  pointer-events: none;
+}
+
+.fi-section-header,
+.fi-section-header-heading {
+  color: var(--verdeo-white) !important;
+}
+
+.fi-section-header-description,
+.fi-stats-overview-stat-description {
+  color: var(--verdeo-muted) !important;
+}
+
+/* ── Stats widgets ──────────────────────────────────────────── */
+.fi-wi-stats-overview-stat {
+  padding: 22px !important;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.fi-wi-stats-overview-stat:hover {
+  transform: translateY(-2px);
+  border-color: rgba(78, 158, 90, 0.55) !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45),
+              0 0 30px rgba(58, 125, 68, 0.18) !important;
+}
+
+.fi-wi-stats-overview-stat-label {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 1.4px !important;
+  text-transform: uppercase;
+  color: var(--verdeo-muted) !important;
+  margin-bottom: 6px;
+}
+
+.fi-wi-stats-overview-stat-value,
+.fi-stats-overview-stat-value {
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-size: 30px !important;
+  font-weight: 700 !important;
+  color: var(--verdeo-white) !important;
+  letter-spacing: 0.5px;
+  line-height: 1.1;
+}
+
+.fi-wi-stats-overview-stat-description {
+  font-size: 12px !important;
+  color: var(--verdeo-muted) !important;
+}
+
+/* Chart trend colors */
+.fi-wi-stats-overview-stat-chart svg path[stroke="rgb(34 197 94)"],
+.fi-wi-stats-overview-stat-chart svg path[stroke="rgb(16 185 129)"] {
+  stroke: var(--verdeo-green-lt) !important;
+}
+
+/* ── Tables ─────────────────────────────────────────────────── */
+.fi-ta {
+  background: var(--verdeo-glass) !important;
+  border: 1px solid var(--verdeo-bdr) !important;
+  border-radius: 16px !important;
+  overflow: hidden;
+  backdrop-filter: blur(14px) saturate(1.3);
+}
+
+.fi-ta-header,
+.fi-ta-header-cell {
+  background: rgba(15, 32, 53, 0.6) !important;
+  color: var(--verdeo-muted) !important;
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-size: 11px !important;
+  letter-spacing: 1.4px !important;
+  text-transform: uppercase;
+  font-weight: 700 !important;
+  border-bottom: 1px solid var(--verdeo-bdr) !important;
+}
+
+.fi-ta-row {
+  background: transparent !important;
+  border-bottom: 1px solid var(--verdeo-bdr-soft) !important;
+  transition: background 0.18s ease;
+}
+
+.fi-ta-row:hover {
+  background: rgba(58, 125, 68, 0.08) !important;
+}
+
+.fi-ta-cell {
+  color: var(--verdeo-white) !important;
+  padding: 14px 16px !important;
+  font-size: 14px !important;
+}
+
+.fi-ta-empty-state {
+  color: var(--verdeo-muted) !important;
+}
+
+/* ── Buttons ────────────────────────────────────────────────── */
+.fi-btn-color-primary,
+.fi-btn[data-color="primary"],
+button.fi-btn:not(.fi-btn-color-gray):not(.fi-btn-color-danger):not(.fi-btn-color-warning) {
+  background: linear-gradient(135deg, var(--verdeo-green) 0%, var(--verdeo-green-lt) 60%, var(--verdeo-green) 100%) !important;
+  background-size: 200% 200% !important;
+  background-position: 100% 100% !important;
+  color: #fff !important;
+  border: none !important;
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1.5px !important;
+  text-transform: uppercase;
+  border-radius: 10px !important;
+  padding: 10px 18px !important;
+  box-shadow: 0 4px 16px rgba(58, 125, 68, 0.35) !important;
+  transition: background-position 0.4s, box-shadow 0.3s, transform 0.2s !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.fi-btn-color-primary:hover,
+.fi-btn[data-color="primary"]:hover {
+  background-position: 0% 0% !important;
+  box-shadow: 0 6px 26px rgba(58, 125, 68, 0.55), 0 0 30px rgba(78, 158, 90, 0.2) !important;
+  transform: translateY(-2px);
+}
+
+.fi-btn-color-gray, .fi-btn[data-color="gray"] {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid var(--verdeo-bdr-soft) !important;
+  color: var(--verdeo-white) !important;
+  border-radius: 10px !important;
+}
+.fi-btn-color-gray:hover, .fi-btn[data-color="gray"]:hover {
+  background: rgba(58, 125, 68, 0.12) !important;
+  border-color: rgba(58, 125, 68, 0.4) !important;
+}
+
+/* ── Inputs / forms ─────────────────────────────────────────── */
+.fi-input,
+.fi-input-wrp,
+.fi-fo-text-input input,
+.fi-fo-textarea textarea,
+.fi-fo-select select,
+input[type="text"], input[type="email"], input[type="password"],
+input[type="number"], input[type="search"], textarea, select {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--verdeo-bdr-soft) !important;
+  color: var(--verdeo-white) !important;
+  border-radius: 10px !important;
+  font-family: 'Barlow', sans-serif !important;
+}
+
+.fi-input:focus, .fi-input:focus-within,
+input:focus, textarea:focus, select:focus {
+  border-color: var(--verdeo-green-lt) !important;
+  background: rgba(58, 125, 68, 0.08) !important;
+  box-shadow: 0 0 0 3px rgba(58, 125, 68, 0.18) !important;
+  outline: none !important;
+}
+
+.fi-fo-field-wrp-label, label {
+  color: var(--verdeo-muted) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 1.2px !important;
+  text-transform: uppercase;
+}
+
+::placeholder { color: rgba(240, 244, 240, 0.25) !important; }
+
+/* ── Badges / pills ─────────────────────────────────────────── */
+.fi-badge {
+  border-radius: 999px !important;
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-weight: 700 !important;
+  letter-spacing: 1px !important;
+  text-transform: uppercase;
+  font-size: 10px !important;
+  padding: 4px 10px !important;
+}
+
+.fi-badge[data-color="success"], .fi-color-success {
+  background: rgba(58, 125, 68, 0.2) !important;
+  color: var(--verdeo-green-xlt) !important;
+  border: 1px solid rgba(78, 158, 90, 0.4) !important;
+}
+.fi-badge[data-color="warning"], .fi-color-warning {
+  background: rgba(200, 160, 48, 0.18) !important;
+  color: var(--verdeo-gold) !important;
+  border: 1px solid rgba(200, 160, 48, 0.4) !important;
+}
+.fi-badge[data-color="danger"], .fi-color-danger {
+  background: rgba(220, 68, 68, 0.18) !important;
+  color: #ff7a7a !important;
+  border: 1px solid rgba(220, 68, 68, 0.4) !important;
+}
+.fi-badge[data-color="info"], .fi-color-info {
+  background: rgba(138, 180, 200, 0.18) !important;
+  color: #a0c8d8 !important;
+  border: 1px solid rgba(138, 180, 200, 0.4) !important;
+}
+
+/* ── Modals / dropdowns ─────────────────────────────────────── */
+.fi-modal-window, .fi-dropdown-panel {
+  background: var(--verdeo-glass-2) !important;
+  border: 1px solid var(--verdeo-bdr) !important;
+  border-radius: 16px !important;
+  backdrop-filter: blur(20px) saturate(1.4) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(1.4) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6) !important;
+}
+
+.fi-dropdown-list-item:hover {
+  background: rgba(58, 125, 68, 0.15) !important;
+}
+
+/* ── Pagination ─────────────────────────────────────────────── */
+.fi-pagination-item button {
+  border-radius: 8px !important;
+  color: var(--verdeo-muted) !important;
+}
+.fi-pagination-item button[aria-current="page"] {
+  background: var(--verdeo-green) !important;
+  color: #fff !important;
+}
+
+/* ── Misc ───────────────────────────────────────────────────── */
+hr, .fi-divider { border-color: var(--verdeo-bdr-soft) !important; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+::-webkit-scrollbar-thumb {
+  background: rgba(58, 125, 68, 0.4);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(78, 158, 90, 0.6); }
+
+/* ── Charts ─────────────────────────────────────────────────── */
+.fi-wi-chart canvas { filter: drop-shadow(0 4px 14px rgba(58, 125, 68, 0.25)); }

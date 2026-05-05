@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verdeo — Revisá tu correo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy:      #0b1828;
+      --green:     #3a7d44;
+      --green-lt:  #4e9e5a;
+      --white:     #f0f4f0;
+      --muted:     rgba(240,244,240,0.45);
+      --glass-bg:  rgba(11,24,40,0.72);
+      --glass-bdr: rgba(58,125,68,0.35);
+    }
+    html, body {
+      height: 100%;
+      background: var(--navy);
+      font-family: 'Barlow', sans-serif;
+      color: var(--white);
+      overflow: hidden;
+    }
+    #bg { position: fixed; inset: 0; z-index: 0; }
+    .stage {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px 16px;
+    }
+    .card {
+      width: 100%; max-width: 460px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-bdr);
+      border-radius: 20px;
+      padding: 52px 40px 44px;
+      backdrop-filter: blur(18px) saturate(1.4);
+      -webkit-backdrop-filter: blur(18px) saturate(1.4);
+      box-shadow:
+        0 0 0 1px rgba(58,125,68,0.12),
+        0 24px 60px rgba(0,0,0,0.55),
+        0 0 80px rgba(58,125,68,0.07) inset;
+      position: relative; overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(78,158,90,0.7), transparent);
+    }
+
+    /* Logo small top-right */
+    .logo-corner {
+      position: absolute; top: 20px; right: 24px;
+    }
+    .logo-corner img {
+      width: 40px; height: 40px; border-radius: 50%;
+      opacity: 0.7;
+      filter: drop-shadow(0 2px 6px rgba(58,125,68,0.4));
+    }
+
+    /* Content */
+    .content {
+      display: flex; flex-direction: column;
+      align-items: center; text-align: center;
+      gap: 0;
+    }
+
+    /* Envelope */
+    .envelope-wrap {
+      position: relative;
+      width: 80px; height: 80px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 32px;
+    }
+    .envelope-ring {
+      position: absolute; inset: -8px; border-radius: 50%;
+      border: 1.5px solid rgba(78,158,90,0.4);
+      animation: pulse 2.2s ease-out infinite;
+      pointer-events: none;
+    }
+    .envelope-ring-2 {
+      position: absolute; inset: -20px; border-radius: 50%;
+      border: 1px solid rgba(78,158,90,0.2);
+      animation: pulse 2.2s ease-out infinite 0.5s;
+      pointer-events: none;
+    }
+    @keyframes pulse {
+      0%   { transform: scale(0.88); opacity: 1; }
+      100% { transform: scale(1.3);  opacity: 0; }
+    }
+    .envelope-bg {
+      width: 80px; height: 80px; border-radius: 50%;
+      background: rgba(58,125,68,0.1);
+      border: 1px solid rgba(58,125,68,0.3);
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 28px; font-weight: 700; letter-spacing: 0.5px;
+      color: var(--white); line-height: 1.2;
+      margin-bottom: 12px;
+    }
+
+    .subtitle {
+      font-size: 14px; color: var(--muted); line-height: 1.6;
+      margin-bottom: 20px; max-width: 320px;
+    }
+
+    .email-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(58,125,68,0.12);
+      border: 1px solid rgba(58,125,68,0.3);
+      border-radius: 8px; padding: 10px 18px;
+      font-size: 13px; font-weight: 600; color: var(--green-lt);
+      letter-spacing: 0.2px; margin-bottom: 20px;
+      word-break: break-word; max-width: 100%;
+    }
+
+    .note {
+      font-size: 12px; color: var(--muted); line-height: 1.6;
+      max-width: 300px; margin-bottom: 36px;
+    }
+
+    /* Buttons */
+    .btn-primary {
+      width: 100%; padding: 15px; border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #3a7d44 0%, #4e9e5a 60%, #3a7d44 100%);
+      background-size: 200% 200%; background-position: 100% 100%;
+      color: #fff;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; cursor: pointer;
+      transition: background-position 0.45s, box-shadow 0.35s, transform 0.2s;
+      box-shadow: 0 4px 18px rgba(58,125,68,0.3);
+      position: relative; overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .btn-primary::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.12) 50%, transparent 70%);
+      transform: translateX(-100%); transition: transform 0.5s ease;
+    }
+    .btn-primary:hover {
+      background-position: 0% 0%;
+      box-shadow: 0 6px 28px rgba(58,125,68,0.55), 0 0 40px rgba(78,158,90,0.2);
+      transform: translateY(-2px);
+    }
+    .btn-primary:hover::after { transform: translateX(100%); }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-back {
+      background: none; border: none;
+      color: var(--muted); font-family: 'Barlow', sans-serif;
+      font-size: 12px; cursor: pointer; letter-spacing: 0.5px;
+      transition: color 0.2s; padding: 4px 8px;
+      text-decoration: none; display: inline-block;
+    }
+    .btn-back:hover { color: var(--green-lt); }
+
+    .resend {
+      margin-top: 6px;
+      font-size: 12px; color: var(--muted);
+    }
+    .resend a {
+      color: var(--green-lt); font-weight: 600; text-decoration: none;
+      transition: color 0.2s;
+    }
+    .resend a:hover { color: #fff; }
+
+    @media (max-width: 480px) {
+      .card { padding: 40px 24px 36px; border-radius: 16px; }
+      html, body { overflow: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+
+<div class="stage">
+  <div class="card">
+
+    <div class="logo-corner">
+      <img src="verdeo-logo-crop.png" alt="Verdeo" />
+    </div>
+
+    <div class="content">
+
+      <div class="envelope-wrap">
+        <div class="envelope-ring"></div>
+        <div class="envelope-ring-2"></div>
+        <div class="envelope-bg">
+          <svg width="38" height="38" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="13" width="48" height="32" rx="5" stroke="#4e9e5a" stroke-width="2" fill="rgba(58,125,68,0.12)"/>
+            <path d="M4 18 L28 33 L52 18" stroke="#4e9e5a" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <h1 class="title">Revisá tu casilla<br/>de correo</h1>
+      <p class="subtitle">Enviamos un enlace de acceso a</p>
+
+      <div class="email-badge" id="email-display">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <rect x="1" y="2.5" width="12" height="9" rx="1.5" stroke="#4e9e5a" stroke-width="1.2"/>
+          <path d="M1 4 L7 8 L13 4" stroke="#4e9e5a" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+        tucasilla@tucasilla.com
+      </div>
+
+      <p class="note">Visitá el enlace para completar el proceso.<br/>Si no lo encontrás, revisá tu carpeta de spam.</p>
+
+      <a href="Login.html" class="btn-primary" style="text-decoration:none; display:block; text-align:center; line-height:1;">Listo</a>
+      <a href="Login.html" class="btn-back">← Volver al inicio de sesión</a>
+
+      <p class="resend">¿No recibiste el correo? <a href="#" onclick="resend(); return false;">Reenviar</a></p>
+
+    </div>
+  </div>
+</div>
+
+<script>
+/* Read email from URL param */
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const email = params.get('email');
+  if (email) {
+    const el = document.getElementById('email-display');
+    el.childNodes[el.childNodes.length - 1].textContent = ' ' + decodeURIComponent(email);
+  }
+})();
+
+function resend() {
+  const link = document.querySelector('.resend a');
+  link.textContent = '✓ Reenviado';
+  link.style.color = 'var(--white)';
+  link.style.pointerEvents = 'none';
+  setTimeout(() => {
+    link.textContent = 'Reenviar';
+    link.style.color = '';
+    link.style.pointerEvents = '';
+  }, 3000);
+}
+
+/* ── Particles ── */
+(function() {
+  const canvas = document.getElementById('bg');
+  const ctx = canvas.getContext('2d');
+  const COLORS = ['#3a7d44','#4e9e5a','#c8a030','#8ab4c8','#2d6e38'];
+  let W, H, particles, mouse = { x: -9999, y: -9999 };
+  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+  function Particle() {
+    this.x = Math.random()*W; this.y = Math.random()*H;
+    this.vx = (Math.random()-.5)*.4; this.vy = (Math.random()-.5)*.4;
+    this.r = Math.random()*1.8+.6;
+    this.color = COLORS[Math.floor(Math.random()*COLORS.length)];
+    this.alpha = Math.random()*.5+.2;
+  }
+  function init() {
+    resize();
+    particles = Array.from({length: Math.min(120, Math.floor(W*H/12000))}, () => new Particle());
+  }
+  function draw() {
+    ctx.clearRect(0,0,W,H);
+    const maxD = 130;
+    for (let i=0; i<particles.length; i++) {
+      const a = particles[i];
+      for (let j=i+1; j<particles.length; j++) {
+        const b = particles[j], dx=a.x-b.x, dy=a.y-b.y, d=Math.sqrt(dx*dx+dy*dy);
+        if (d<maxD) { ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.strokeStyle=`rgba(58,125,68,${.12*(1-d/maxD)})`; ctx.lineWidth=.6; ctx.stroke(); }
+      }
+      const mx=a.x-mouse.x, my=a.y-mouse.y, md=Math.sqrt(mx*mx+my*my);
+      if (md<120) { ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(mouse.x,mouse.y); ctx.strokeStyle=`rgba(78,158,90,${.18*(1-md/120)})`; ctx.lineWidth=.8; ctx.stroke(); }
+    }
+    for (const p of particles) {
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=p.color; ctx.globalAlpha=p.alpha; ctx.fill(); ctx.globalAlpha=1;
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0)p.x=W; if(p.x>W)p.x=0; if(p.y<0)p.y=H; if(p.y>H)p.y=0;
+    }
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize', init);
+  window.addEventListener('mousemove', e => { mouse.x=e.clientX; mouse.y=e.clientY; });
+  window.addEventListener('touchmove', e => { mouse.x=e.touches[0].clientX; mouse.y=e.touches[0].clientY; }, {passive:true});
+  init(); draw();
+})();
+</script>
+</body>
+</html>

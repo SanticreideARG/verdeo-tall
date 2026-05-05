@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Verdeo · Dashboard</title>
+<link rel="stylesheet" href="verdeo-filament.css"/>
+<style>
+/* ── Filament-like layout shell (so skin can do its work) ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{display:flex;min-height:100vh}
+
+/* Sidebar */
+.fi-sidebar{width:260px;flex-shrink:0;display:flex;flex-direction:column;height:100vh;position:sticky;top:0}
+.fi-sidebar-header{display:flex;align-items:center;gap:12px}
+.fi-sidebar-header img{width:36px;height:36px;border-radius:50%;filter:drop-shadow(0 2px 6px rgba(58,125,68,.5))}
+.fi-sidebar-header .brand{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;color:var(--verdeo-white)}
+.fi-sidebar-header .brand span{color:var(--verdeo-green-lt)}
+.fi-sidebar-nav-groups{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+.fi-sidebar-group-label{display:block}
+.fi-sidebar-item-button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:1px solid transparent;background:none;cursor:pointer}
+.fi-sidebar-item-icon{width:18px;height:18px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center}
+
+/* Main */
+.fi-main{flex:1;display:flex;flex-direction:column;min-width:0}
+.fi-topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;gap:16px;height:64px}
+.fi-topbar-search{flex:1;max-width:420px;position:relative}
+.fi-topbar-search input{width:100%;padding:9px 14px 9px 38px;font-size:14px}
+.fi-topbar-search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--verdeo-muted)}
+.fi-topbar-actions{display:flex;align-items:center;gap:12px}
+.icon-btn{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid var(--verdeo-bdr-soft);display:flex;align-items:center;justify-content:center;color:var(--verdeo-muted);cursor:pointer;position:relative}
+.icon-btn:hover{background:rgba(58,125,68,.12);border-color:rgba(58,125,68,.4);color:var(--verdeo-white)}
+.icon-btn .dot{position:absolute;top:8px;right:9px;width:7px;height:7px;background:var(--verdeo-green-lt);border-radius:50%;border:2px solid var(--verdeo-navy)}
+.user-chip{display:flex;align-items:center;gap:10px;padding:5px 14px 5px 5px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid var(--verdeo-bdr-soft);cursor:pointer}
+.user-chip:hover{border-color:rgba(58,125,68,.4)}
+.user-chip .ava{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#3a7d44,#4e9e5a);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff}
+.user-chip .name{font-size:13px;font-weight:600;color:var(--verdeo-white)}
+.user-chip .role{font-size:10px;color:var(--verdeo-muted);text-transform:uppercase;letter-spacing:1px}
+
+.fi-page{padding:28px;flex:1;display:flex;flex-direction:column;gap:24px}
+.fi-page-header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px}
+.fi-header-heading{font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:700;color:var(--verdeo-white);letter-spacing:.5px;margin-bottom:4px}
+.fi-header-sub{font-size:14px;color:var(--verdeo-muted)}
+.fi-header-actions{display:flex;gap:10px;align-items:center}
+
+/* Stats grid */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.fi-wi-stats-overview-stat{display:flex;flex-direction:column;gap:6px}
+.fi-wi-stats-overview-stat-label{display:flex;align-items:center;justify-content:space-between}
+.fi-wi-stats-overview-stat-label .ic{width:32px;height:32px;border-radius:9px;background:rgba(58,125,68,.18);display:flex;align-items:center;justify-content:center;color:var(--verdeo-green-lt)}
+.fi-wi-stats-overview-stat-description{display:flex;align-items:center;gap:6px;margin-top:6px}
+.trend-up{color:var(--verdeo-green-xlt);font-weight:600}
+.trend-down{color:#ff7a7a;font-weight:600}
+
+/* Two col */
+.row-2{display:grid;grid-template-columns:2fr 1fr;gap:24px}
+
+/* Section padding */
+.fi-section{padding:24px}
+.fi-section-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px;gap:12px}
+.fi-section-header-heading{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--verdeo-white);letter-spacing:.5px}
+.fi-section-header-description{font-size:12px;color:var(--verdeo-muted);margin-top:2px}
+
+/* Chart */
+.chart-wrap{position:relative;height:240px}
+
+/* Recent orders table */
+.fi-ta{display:block}
+.fi-ta-table{width:100%;border-collapse:collapse}
+.fi-ta-header-cell{padding:12px 16px;text-align:left}
+.fi-ta-cell{padding:14px 16px}
+.fi-ta-product{display:flex;align-items:center;gap:10px}
+.fi-ta-product .pic{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,rgba(58,125,68,.4),rgba(78,158,90,.2));display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.fi-ta-product .info{display:flex;flex-direction:column;gap:1px}
+.fi-ta-product .info b{font-weight:600;font-size:13px;color:var(--verdeo-white)}
+.fi-ta-product .info small{font-size:11px;color:var(--verdeo-muted)}
+
+/* City list small */
+.city-list{display:flex;flex-direction:column;gap:10px}
+.city-row{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid var(--verdeo-bdr-soft);transition:all .2s}
+.city-row:hover{border-color:rgba(58,125,68,.3);background:rgba(58,125,68,.07)}
+.city-row .left{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--verdeo-white)}
+.city-row .pin{width:8px;height:8px;border-radius:50%;background:var(--verdeo-green-lt);box-shadow:0 0 8px rgba(78,158,90,.6)}
+.city-row .pct{font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--verdeo-green-lt);font-size:14px}
+
+/* Responsive */
+@media(max-width:1100px){.stats-grid{grid-template-columns:repeat(2,1fr)}.row-2{grid-template-columns:1fr}}
+@media(max-width:720px){
+  .fi-sidebar{position:fixed;left:-260px;z-index:100;transition:left .25s}
+  .fi-sidebar.open{left:0}
+  .fi-main{width:100%}
+  .stats-grid{grid-template-columns:1fr}
+  .fi-topbar-search{display:none}
+}
+
+/* Icon */
+.ic-svg{width:18px;height:18px;display:block}
+</style>
+</head>
+<body class="fi-body">
+
+<canvas id="verdeo-bg"></canvas>
+
+<!-- ── Sidebar ── -->
+<aside class="fi-sidebar">
+  <div class="fi-sidebar-header">
+    <img src="verdeo-logo-crop.png" alt="Verdeo"/>
+    <div class="brand">Verdeo <span>Admin</span></div>
+  </div>
+  <nav class="fi-sidebar-nav-groups">
+    <div class="fi-sidebar-group-label">General</div>
+    <button class="fi-sidebar-item-button" aria-current="page">
+      <span class="fi-sidebar-item-icon"><svg class="ic-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg></span>
+      Dashboard
+    </button>
+    <button class="fi-sidebar-item-button">
+      <span class="fi-sidebar-item-icon"><svg class="ic-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2l1 4h11l1-4"/><path d="M5 6l2 14h10l2-14"/><circle cx="9" cy="20" r="1.5"/><circle cx="15" cy="20" r="1.5"/></svg></span>
+      Pedidos
+    </button>
+    <button class="fi-sidebar-item-button">
+      <span class="fi-sidebar-item-icon"><svg class="ic-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16v12H4z"/><path d="M4 7l8-4 8 4"/><path d="M9 13h6"/></svg></span>
+      Productos
+    </button>
+    <button class="fi-sidebar-item-button">
+      <span class="fi-sidebar-item-icon"><svg class="ic-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg></span>
+      Clientes
+    </button>
+    <button class="fi-sidebar-item-button">
+      <span class="fi-sidebar-item-icon"><svg class="ic-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10h18M5 10v10h14V10M9 6V3h6v3"/></svg></span>
+      Inventario
+    </button>
+
+    <div class="fi-sidebar-group-label">Operación</div>
+    <button class="fi-sidebar-item-button">
+      <span class="fi-sidebar-item-icon"><svg class="ic-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+      Entregas
+    </button>
+    <button class="fi-sidebar-item-button">
+      <span class="fi-sidebar-item-icon"><svg class="ic-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L3 7l9 5 9-5-9-5z"/><path d="M3 12l9 5 9-5M3 17l9 5 9-5"/></svg></span>
+      Reportes
+    </button>
+    <button class="fi-sidebar-item-button">
+      <span class="fi-sidebar-item-icon"><svg class="ic-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.2-1.7l2-1.5-2-3.4-2.3.9a7 7 0 00-2.9-1.7L13 2h-2l-.6 2.6a7 7 0 00-2.9 1.7l-2.3-.9-2 3.4 2 1.5A7 7 0 005 12c0 .6.1 1.1.2 1.7l-2 1.5 2 3.4 2.3-.9a7 7 0 002.9 1.7L11 22h2l.6-2.6a7 7 0 002.9-1.7l2.3.9 2-3.4-2-1.5c.1-.6.2-1.1.2-1.7z"/></svg></span>
+      Configuración
+    </button>
+  </nav>
+</aside>
+
+<!-- ── Main ── -->
+<main class="fi-main">
+
+  <!-- Topbar -->
+  <header class="fi-topbar">
+    <div class="fi-topbar-search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input type="search" placeholder="Buscar pedidos, clientes, productos..."/>
+    </div>
+    <div class="fi-topbar-actions">
+      <div class="icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 1112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 004 0"/></svg><span class="dot"></span></div>
+      <div class="icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+      <div class="user-chip">
+        <div class="ava">VR</div>
+        <div><div class="name">Valentina R.</div><div class="role">Admin</div></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Page -->
+  <div class="fi-page">
+
+    <div class="fi-page-header">
+      <div>
+        <h1 class="fi-header-heading">Buenos días, Valentina 🌿</h1>
+        <p class="fi-header-sub">Resumen de operaciones · 4 de mayo, 2026</p>
+      </div>
+      <div class="fi-header-actions">
+        <button class="fi-btn fi-btn-color-gray">Exportar</button>
+        <button class="fi-btn fi-btn-color-primary">+ Nuevo pedido</button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="fi-wi-stats-overview-stat">
+        <div class="fi-wi-stats-overview-stat-label">Pedidos hoy
+          <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2l1 4h11l1-4"/><path d="M5 6l2 14h10l2-14"/></svg></span>
+        </div>
+        <div class="fi-wi-stats-overview-stat-value">147</div>
+        <div class="fi-wi-stats-overview-stat-description">
+          <span class="trend-up">▲ 12.4%</span> vs. ayer
+        </div>
+      </div>
+      <div class="fi-wi-stats-overview-stat">
+        <div class="fi-wi-stats-overview-stat-label">Ingresos
+          <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 6H9a3 3 0 100 6h6a3 3 0 110 6H7"/></svg></span>
+        </div>
+        <div class="fi-wi-stats-overview-stat-value">$ 8.92M</div>
+        <div class="fi-wi-stats-overview-stat-description">
+          <span class="trend-up">▲ 8.1%</span> esta semana
+        </div>
+      </div>
+      <div class="fi-wi-stats-overview-stat">
+        <div class="fi-wi-stats-overview-stat-label">Clientes activos
+          <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg></span>
+        </div>
+        <div class="fi-wi-stats-overview-stat-value">2,341</div>
+        <div class="fi-wi-stats-overview-stat-description">
+          <span class="trend-up">▲ 3.2%</span> este mes
+        </div>
+      </div>
+      <div class="fi-wi-stats-overview-stat">
+        <div class="fi-wi-stats-overview-stat-label">Tasa entrega
+          <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg></span>
+        </div>
+        <div class="fi-wi-stats-overview-stat-value">98.6%</div>
+        <div class="fi-wi-stats-overview-stat-description">
+          <span class="trend-down">▼ 0.4%</span> vs. promedio
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart + Cities -->
+    <div class="row-2">
+      <div class="fi-section">
+        <div class="fi-section-header">
+          <div>
+            <div class="fi-section-header-heading">Ingresos · últimos 14 días</div>
+            <div class="fi-section-header-description">Comparativa diaria de pedidos confirmados</div>
+          </div>
+          <button class="fi-btn fi-btn-color-gray" style="padding:6px 14px;font-size:11px">14 días ▾</button>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="revenue-chart"></canvas>
+        </div>
+      </div>
+
+      <div class="fi-section">
+        <div class="fi-section-header">
+          <div>
+            <div class="fi-section-header-heading">Top ciudades</div>
+            <div class="fi-section-header-description">Pedidos por cobertura</div>
+          </div>
+        </div>
+        <div class="city-list">
+          <div class="city-row"><div class="left"><div class="pin"></div>Neuquén Capital</div><div class="pct">28%</div></div>
+          <div class="city-row"><div class="left"><div class="pin"></div>CABA</div><div class="pct">22%</div></div>
+          <div class="city-row"><div class="left"><div class="pin"></div>Cipolletti</div><div class="pct">14%</div></div>
+          <div class="city-row"><div class="left"><div class="pin"></div>Mendoza Capital</div><div class="pct">12%</div></div>
+          <div class="city-row"><div class="left"><div class="pin"></div>Córdoba Capital</div><div class="pct">10%</div></div>
+          <div class="city-row"><div class="left"><div class="pin"></div>Vicente López</div><div class="pct">8%</div></div>
+          <div class="city-row"><div class="left"><div class="pin"></div>Otros</div><div class="pct">6%</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="fi-ta">
+      <div style="padding:18px 20px;display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--verdeo-bdr)">
+        <div>
+          <div class="fi-section-header-heading">Pedidos recientes</div>
+          <div class="fi-section-header-description">Últimas 24 horas</div>
+        </div>
+        <button class="fi-btn fi-btn-color-gray" style="padding:6px 14px;font-size:11px">Ver todos →</button>
+      </div>
+      <table class="fi-ta-table">
+        <thead class="fi-ta-header">
+          <tr>
+            <th class="fi-ta-header-cell">Pedido</th>
+            <th class="fi-ta-header-cell">Cliente</th>
+            <th class="fi-ta-header-cell">Ciudad</th>
+            <th class="fi-ta-header-cell">Pack</th>
+            <th class="fi-ta-header-cell">Total</th>
+            <th class="fi-ta-header-cell">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="fi-ta-row">
+            <td class="fi-ta-cell"><div class="fi-ta-product"><div class="pic">🥑</div><div class="info"><b>#VRD-1284</b><small>4 May · 09:42</small></div></div></td>
+            <td class="fi-ta-cell">Lucía M.</td>
+            <td class="fi-ta-cell">Neuquén Capital</td>
+            <td class="fi-ta-cell">2× 400g · Keto</td>
+            <td class="fi-ta-cell"><b>$ 160.000</b></td>
+            <td class="fi-ta-cell"><span class="fi-badge" data-color="success">Entregado</span></td>
+          </tr>
+          <tr class="fi-ta-row">
+            <td class="fi-ta-cell"><div class="fi-ta-product"><div class="pic">🥦</div><div class="info"><b>#VRD-1283</b><small>4 May · 08:15</small></div></div></td>
+            <td class="fi-ta-cell">Mateo G.</td>
+            <td class="fi-ta-cell">CABA</td>
+            <td class="fi-ta-cell">1× 250g · Vegetariano</td>
+            <td class="fi-ta-cell"><b>$ 65.000</b></td>
+            <td class="fi-ta-cell"><span class="fi-badge" data-color="info">En camino</span></td>
+          </tr>
+          <tr class="fi-ta-row">
+            <td class="fi-ta-cell"><div class="fi-ta-product"><div class="pic">🥩</div><div class="info"><b>#VRD-1282</b><small>3 May · 21:08</small></div></div></td>
+            <td class="fi-ta-cell">Sofía B.</td>
+            <td class="fi-ta-cell">Cipolletti</td>
+            <td class="fi-ta-cell">3× 400g · Real</td>
+            <td class="fi-ta-cell"><b>$ 240.000</b></td>
+            <td class="fi-ta-cell"><span class="fi-badge" data-color="warning">Preparando</span></td>
+          </tr>
+          <tr class="fi-ta-row">
+            <td class="fi-ta-cell"><div class="fi-ta-product"><div class="pic">✨</div><div class="info"><b>#VRD-1281</b><small>3 May · 19:22</small></div></div></td>
+            <td class="fi-ta-cell">Tomás A.</td>
+            <td class="fi-ta-cell">Mendoza Capital</td>
+            <td class="fi-ta-cell">1× 400g · Anti Age</td>
+            <td class="fi-ta-cell"><b>$ 80.000</b></td>
+            <td class="fi-ta-cell"><span class="fi-badge" data-color="success">Entregado</span></td>
+          </tr>
+          <tr class="fi-ta-row">
+            <td class="fi-ta-cell"><div class="fi-ta-product"><div class="pic">🥑</div><div class="info"><b>#VRD-1280</b><small>3 May · 18:11</small></div></div></td>
+            <td class="fi-ta-cell">Camila P.</td>
+            <td class="fi-ta-cell">Vicente López</td>
+            <td class="fi-ta-cell">2× 250g · Keto</td>
+            <td class="fi-ta-cell"><b>$ 130.000</b></td>
+            <td class="fi-ta-cell"><span class="fi-badge" data-color="danger">Cancelado</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</main>
+
+<script>
+/* ── Particle background (matches login/shop) ── */
+(function(){
+  const canvas=document.getElementById('verdeo-bg'),ctx=canvas.getContext('2d');
+  const C=['#3a7d44','#4e9e5a','#c8a030','#8ab4c8','#2d6e38'];
+  let W,H,P,mouse={x:-9999,y:-9999};
+  function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;}
+  function Pt(){this.x=Math.random()*W;this.y=Math.random()*H;this.vx=(Math.random()-.5)*.3;this.vy=(Math.random()-.5)*.3;this.r=Math.random()*1.6+.5;this.color=C[0|Math.random()*C.length];this.a=Math.random()*.4+.15;}
+  function init(){resize();P=Array.from({length:Math.min(80,0|W*H/18000)},()=>new Pt());}
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    const mx=120;
+    for(let i=0;i<P.length;i++){
+      const a=P[i];
+      for(let j=i+1;j<P.length;j++){const b=P[j],dx=a.x-b.x,dy=a.y-b.y,d=Math.sqrt(dx*dx+dy*dy);if(d<mx){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle=`rgba(58,125,68,${.08*(1-d/mx)})`;ctx.lineWidth=.5;ctx.stroke();}}
+    }
+    for(const p of P){ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=p.color;ctx.globalAlpha=p.a;ctx.fill();ctx.globalAlpha=1;p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;}
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize',init);
+  init();draw();
+})();
+
+/* ── Revenue chart ── */
+(function(){
+  const canvas=document.getElementById('revenue-chart');
+  const ctx=canvas.getContext('2d');
+  function resize(){
+    const r=canvas.parentElement.getBoundingClientRect();
+    canvas.width=r.width*devicePixelRatio;
+    canvas.height=r.height*devicePixelRatio;
+    canvas.style.width=r.width+'px';
+    canvas.style.height=r.height+'px';
+    ctx.scale(devicePixelRatio,devicePixelRatio);
+    draw();
+  }
+  const data=[3.2,4.1,3.8,5.2,4.9,6.1,5.8,6.4,7.1,6.8,7.9,8.2,7.6,8.9];
+  const labels=['21','22','23','24','25','26','27','28','29','30','1','2','3','4'];
+
+  function draw(){
+    const w=canvas.parentElement.clientWidth, h=canvas.parentElement.clientHeight;
+    ctx.clearRect(0,0,w,h);
+    const pad={l:36,r:14,t:16,b:28};
+    const cw=w-pad.l-pad.r, ch=h-pad.t-pad.b;
+    const max=Math.max(...data)*1.15, min=0;
+
+    // Grid
+    ctx.strokeStyle='rgba(255,255,255,0.05)';ctx.lineWidth=1;
+    for(let i=0;i<=4;i++){const y=pad.t+ch*i/4;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cw,y);ctx.stroke();
+      ctx.fillStyle='rgba(240,244,240,0.35)';ctx.font='10px Barlow';ctx.textAlign='right';
+      ctx.fillText('$'+((max*(1-i/4))|0)+'M',pad.l-6,y+3);
+    }
+
+    // Area gradient
+    const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+ch);
+    grad.addColorStop(0,'rgba(78,158,90,0.5)');
+    grad.addColorStop(1,'rgba(78,158,90,0)');
+
+    // Build path
+    const pts=data.map((v,i)=>({x:pad.l+cw*i/(data.length-1),y:pad.t+ch*(1-(v-min)/(max-min))}));
+
+    ctx.beginPath();ctx.moveTo(pts[0].x,pad.t+ch);
+    for(const p of pts) ctx.lineTo(p.x,p.y);
+    ctx.lineTo(pts[pts.length-1].x,pad.t+ch);ctx.closePath();
+    ctx.fillStyle=grad;ctx.fill();
+
+    // Line
+    ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
+    for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y);
+    ctx.strokeStyle='#4e9e5a';ctx.lineWidth=2.4;ctx.lineJoin='round';ctx.stroke();
+
+    // Dots
+    for(const p of pts){
+      ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);
+      ctx.fillStyle='#0f2035';ctx.fill();
+      ctx.lineWidth=1.5;ctx.strokeStyle='#4e9e5a';ctx.stroke();
+    }
+    // Last point glow
+    const lp=pts[pts.length-1];
+    ctx.beginPath();ctx.arc(lp.x,lp.y,6,0,Math.PI*2);
+    ctx.fillStyle='rgba(78,158,90,0.3)';ctx.fill();
+    ctx.beginPath();ctx.arc(lp.x,lp.y,3,0,Math.PI*2);
+    ctx.fillStyle='#6dbf7a';ctx.fill();
+
+    // X labels
+    ctx.fillStyle='rgba(240,244,240,0.4)';ctx.font='10px Barlow';ctx.textAlign='center';
+    pts.forEach((p,i)=>{if(i%2===0)ctx.fillText(labels[i],p.x,h-8);});
+  }
+
+  window.addEventListener('resize',()=>{ctx.setTransform(1,0,0,1,0,0);resize();});
+  resize();
+})();
+</script>
+</body>
+</html>

@@ -19,9 +19,56 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'apellido',
         'email',
         'password',
+        'role',
+        'whatsapp',
+        'ciudad',
+        'direccion',
+        'zona',
+        'foto',
     ];
+
+    public function nombreCompleto(): string
+    {
+        return trim($this->name . ' ' . ($this->apellido ?? ''));
+    }
+
+    public static function rolesLabels(): array
+    {
+        return [
+            'admin'            => 'Administrador',
+            'responsable_zona' => 'Resp. de Zona',
+            'colaborador'      => 'Colaborador',
+            'cliente'          => 'Cliente',
+        ];
+    }
+
+    public function rolLabel(): string
+    {
+        return static::rolesLabels()[$this->role] ?? $this->role;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isResponsableZona(): bool
+    {
+        return $this->role === 'responsable_zona';
+    }
+
+    public function isColaborador(): bool
+    {
+        return $this->role === 'colaborador';
+    }
+
+    public function isCliente(): bool
+    {
+        return $this->role === 'cliente';
+    }
 
     /**
      * The attributes that should be hidden for serialization.
