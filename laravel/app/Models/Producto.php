@@ -9,32 +9,62 @@ class Producto extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['nombre', 'descripcion', 'precio', 'unidad', 'categoria', 'activo'];
+    protected $fillable = ['nombre', 'descripcion', 'tipo', 'activo', 'orden'];
 
-    protected $casts = [
-        'precio' => 'decimal:2',
-        'activo' => 'boolean',
-    ];
+    protected $casts = ['activo' => 'boolean'];
 
-    public static array $unidades = [
-        'kg'     => 'Kilogramo (kg)',
-        'g'      => 'Gramo (g)',
-        'unidad' => 'Unidad',
-        'caja'   => 'Caja',
-        'bolsa'  => 'Bolsa',
-        'atado'  => 'Atado',
-        'docena' => 'Docena',
-        'litro'  => 'Litro (L)',
-    ];
+    public static function tipos(): array
+    {
+        return [
+            'keto'        => 'Menú Nuevo Keto',
+            'anti_age'    => 'Menú Anti-Age',
+            'vegetariano' => 'Menú Vegetariano',
+            'real'        => 'Menú Real',
+            'intuitivo'   => 'Menú Intuitivo',
+        ];
+    }
 
-    public static array $categorias = [
-        'Verduras',
-        'Frutas',
-        'Legumbres',
-        'Condimentos',
-        'Lácteos',
-        'Otros',
-    ];
+    public static function tiposDescripcion(): array
+    {
+        return [
+            'keto'        => 'Sin harinas ni cereales',
+            'anti_age'    => 'Ingredientes anti inflamatorios y anti oxidantes',
+            'vegetariano' => 'Sin carnes · Con harina integral orgánica y queso',
+            'real'        => 'Sin ultraprocesados ni procesados',
+            'intuitivo'   => 'Una alimentación consciente, variada y saludable, sin restricciones. Sin sal.',
+        ];
+    }
+
+    public static function tiposBadge(): array
+    {
+        return [
+            'keto'        => 'badge-blue',
+            'anti_age'    => 'badge-green',
+            'vegetariano' => 'badge-green',
+            'real'        => 'badge-yellow',
+            'intuitivo'   => 'badge-gray',
+        ];
+    }
+
+    public function tipoLabel(): string
+    {
+        return self::tipos()[$this->tipo] ?? $this->tipo;
+    }
+
+    public function tipoBadge(): string
+    {
+        return self::tiposBadge()[$this->tipo] ?? 'badge-gray';
+    }
+
+    public function esIntuitivo(): bool
+    {
+        return $this->tipo === 'intuitivo';
+    }
+
+    public function platos()
+    {
+        return $this->hasMany(Plato::class)->orderBy('orden');
+    }
 
     public function scopeActivos($query)
     {

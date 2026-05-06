@@ -37,6 +37,7 @@ Route::middleware('auth')->group(function () {
     Volt::route('/dashboard',         'dashboard')              ->name('dashboard');
     Volt::route('/conversaciones',    'conversaciones.index')   ->name('conversaciones');
     Volt::route('/zonas',             'zonas.index')            ->name('zonas');
+    Volt::route('/enlaces',             'enlaces.index')          ->name('enlaces');
     Volt::route('/estadisticas',       'estadisticas.index')     ->name('estadisticas');
     Volt::route('/productos',          'productos.index')        ->name('productos');
     Volt::route('/ordenes',            'ordenes.index')          ->name('ordenes');

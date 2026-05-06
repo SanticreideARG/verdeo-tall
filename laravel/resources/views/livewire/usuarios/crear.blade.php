@@ -73,8 +73,8 @@ new #[Layout('layouts.app', ['title' => 'Nuevo usuario'])] class extends Compone
     <div class="mb-6">
         <a href="{{ route('usuarios') }}" wire:navigate
            class="inline-flex items-center gap-2 text-sm transition-colors duration-150"
-           style="color: rgba(240,244,240,0.45);"
-           onmouseover="this.style.color='#4e9e5a'" onmouseout="this.style.color='rgba(240,244,240,0.45)'">
+           style="color: var(--vd-muted);"
+           onmouseover="this.style.color='var(--vd-green-lt)'" onmouseout="this.style.color='var(--vd-muted)'">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
             </svg>
@@ -111,7 +111,7 @@ new #[Layout('layouts.app', ['title' => 'Nuevo usuario'])] class extends Compone
                                @change="const f=$event.target.files[0]; if(f){ const r=new FileReader(); r.onload=e=>preview=e.target.result; r.readAsDataURL(f); } else { preview=null; }">
                         Elegir imagen
                     </label>
-                    <p class="text-xs mt-2" style="color: rgba(240,244,240,0.3);">JPG, PNG, WEBP · Máx 2 MB</p>
+                    <p class="text-xs mt-2" style="color: var(--vd-muted-2);">JPG, PNG, WEBP · Máx 2 MB</p>
                     @error('foto')
                         <p class="text-xs mt-1" style="color: #fca5a5;">{{ $message }}</p>
                     @enderror
@@ -139,7 +139,7 @@ new #[Layout('layouts.app', ['title' => 'Nuevo usuario'])] class extends Compone
                         };
                     @endphp
                     <label class="flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all duration-150"
-                           style="border: 1px solid rgba(255,255,255,0.06);"
+                           style="border: 1px solid var(--vd-bdr-soft);"
                            wire:click="$set('role', '{{ $val }}')"
                            :class="$wire.role === '{{ $val }}' ? 'border-color:{{ $color }}' : ''"
                            x-bind:style="$wire.role === '{{ $val }}' ? 'background: rgba(58,125,68,0.12); border-color: {{ $color }}55' : ''">
@@ -152,8 +152,8 @@ new #[Layout('layouts.app', ['title' => 'Nuevo usuario'])] class extends Compone
                                  x-show="$wire.role === '{{ $val }}'"></div>
                         </div>
                         <div>
-                            <p class="text-sm font-semibold" style="color: #f0f4f0;">{{ $label }}</p>
-                            <p class="text-xs" style="color: rgba(240,244,240,0.4);">{{ $desc }}</p>
+                            <p class="text-sm font-semibold" style="color: var(--vd-text);">{{ $label }}</p>
+                            <p class="text-xs" style="color: var(--vd-muted);">{{ $desc }}</p>
                         </div>
                     </label>
                     @endforeach
@@ -171,7 +171,7 @@ new #[Layout('layouts.app', ['title' => 'Nuevo usuario'])] class extends Compone
             {{-- Personal info --}}
             <div class="card">
                 <h3 class="font-condensed font-bold text-base tracking-wide mb-5"
-                    style="color: rgba(240,244,240,0.7); letter-spacing: 1px; text-transform: uppercase; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 12px;">
+                    style="color: var(--vd-muted); letter-spacing: 1px; text-transform: uppercase; font-size: 11px; border-bottom: 1px solid var(--vd-bdr-soft); padding-bottom: 12px;">
                     Datos personales
                 </h3>
 
@@ -223,7 +223,7 @@ new #[Layout('layouts.app', ['title' => 'Nuevo usuario'])] class extends Compone
             {{-- Account info --}}
             <div class="card">
                 <h3 class="font-condensed font-bold tracking-wide mb-5"
-                    style="color: rgba(240,244,240,0.7); letter-spacing: 1px; text-transform: uppercase; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 12px;">
+                    style="color: var(--vd-muted); letter-spacing: 1px; text-transform: uppercase; font-size: 11px; border-bottom: 1px solid var(--vd-bdr-soft); padding-bottom: 12px;">
                     Cuenta de acceso
                 </h3>
 

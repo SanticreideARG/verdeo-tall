@@ -3,392 +3,433 @@
 use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
 use App\Models\Producto;
+use App\Models\Plato;
 
-new #[Layout('layouts.app', ['title' => 'Productos'])] class extends Component {
+new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
 
-    public string  $buscar    = '';
-    public string  $categoria = '';
+    // Edit menu description
+    public ?int   $editMenuId          = null;
+    public string $editMenuDescripcion = '';
 
-    public bool    $showForm  = false;
-    public string  $nombre      = '';
-    public string  $descripcion = '';
-    public string  $precio      = '';
-    public string  $unidad      = 'kg';
-    public string  $categoriaForm = '';
+    // Edit dish inline
+    public ?int   $editPlatoId     = null;
+    public string $editPlatoNombre = '';
 
-    public ?int    $editingId       = null;
-    public string  $editNombre      = '';
-    public string  $editDescripcion = '';
-    public string  $editPrecio      = '';
-    public string  $editUnidad      = 'kg';
-    public string  $editCategoria   = '';
+    // Add dish to a menu
+    public ?int   $addingToMenuId    = null;
+    public string $nuevoPlatoNombre  = '';
 
-    public ?int    $deletingId = null;
+    // CSV / bulk import
+    public ?int   $importMenuId = null;
+    public string $csvText      = '';
 
-    private array $reglasCrear = [
-        'nombre'      => 'required|min:2|max:100',
-        'precio'      => 'required|numeric|min:0',
-        'unidad'      => 'required',
-        'descripcion' => 'nullable|max:1000',
-        'categoriaForm' => 'nullable|max:60',
-    ];
-
-    private array $mensajesCrear = [
-        'nombre.required' => 'El nombre del producto es obligatorio.',
-        'nombre.min'      => 'El nombre debe tener al menos 2 caracteres.',
-        'precio.required' => 'El precio es obligatorio.',
-        'precio.numeric'  => 'El precio debe ser un número.',
-        'precio.min'      => 'El precio no puede ser negativo.',
-        'unidad.required' => 'Seleccioná una unidad de medida.',
-    ];
+    // Delete dish
+    public ?int $deletingPlatoId = null;
 
     public function with(): array
     {
         return [
-            'productos' => Producto::query()
-                ->when($this->buscar, fn($q) => $q->where('nombre', 'like', "%{$this->buscar}%"))
-                ->when($this->categoria, fn($q) => $q->where('categoria', $this->categoria))
-                ->orderBy('nombre')
-                ->get(),
+            'menus' => Producto::orderBy('orden')->with(['platos' => fn($q) => $q->orderBy('orden')])->get(),
         ];
     }
 
-    public function guardar(): void
-    {
-        $this->validate($this->reglasCrear, $this->mensajesCrear);
+    /* ── Menu description ─────────────────────────────────── */
 
-        Producto::create([
-            'nombre'      => trim($this->nombre),
-            'descripcion' => trim($this->descripcion) ?: null,
-            'precio'      => (float) $this->precio,
-            'unidad'      => $this->unidad,
-            'categoria'   => trim($this->categoriaForm) ?: null,
+    public function startEditMenu(int $id): void
+    {
+        $this->editMenuId          = $id;
+        $this->editMenuDescripcion = (string) Producto::findOrFail($id)->descripcion;
+        $this->addingToMenuId      = null;
+        $this->importMenuId        = null;
+    }
+
+    public function guardarMenu(): void
+    {
+        $this->validate(
+            ['editMenuDescripcion' => 'nullable|max:500'],
+            ['editMenuDescripcion.max' => 'Máximo 500 caracteres.']
+        );
+        Producto::findOrFail($this->editMenuId)->update(['descripcion' => trim($this->editMenuDescripcion) ?: null]);
+        $this->editMenuId = null;
+    }
+
+    public function cancelarEditMenu(): void { $this->editMenuId = null; }
+
+    /* ── Dish edit ────────────────────────────────────────── */
+
+    public function startEditPlato(int $id): void
+    {
+        $p                   = Plato::findOrFail($id);
+        $this->editPlatoId   = $id;
+        $this->editPlatoNombre = $p->nombre;
+        $this->addingToMenuId  = null;
+    }
+
+    public function guardarPlato(): void
+    {
+        $this->validate(
+            ['editPlatoNombre' => 'required|min:2|max:200'],
+            ['editPlatoNombre.required' => 'El nombre es obligatorio.', 'editPlatoNombre.min' => 'Mínimo 2 caracteres.']
+        );
+        Plato::findOrFail($this->editPlatoId)->update(['nombre' => trim($this->editPlatoNombre)]);
+        $this->editPlatoId = null;
+    }
+
+    public function cancelarEditPlato(): void { $this->editPlatoId = null; }
+
+    /* ── Add dish ─────────────────────────────────────────── */
+
+    public function startAddPlato(int $menuId): void
+    {
+        $this->addingToMenuId   = $menuId;
+        $this->nuevoPlatoNombre = '';
+        $this->editPlatoId      = null;
+        $this->importMenuId     = null;
+    }
+
+    public function agregarPlato(): void
+    {
+        $this->validate(
+            ['nuevoPlatoNombre' => 'required|min:2|max:200'],
+            ['nuevoPlatoNombre.required' => 'El nombre es obligatorio.', 'nuevoPlatoNombre.min' => 'Mínimo 2 caracteres.']
+        );
+        $menu  = Producto::findOrFail($this->addingToMenuId);
+        $orden = (int) $menu->platos()->max('orden') + 1;
+        Plato::create([
+            'producto_id' => $menu->id,
+            'nombre'      => trim($this->nuevoPlatoNombre),
+            'orden'       => $orden,
             'activo'      => true,
         ]);
-
-        $this->nombre       = '';
-        $this->descripcion  = '';
-        $this->precio       = '';
-        $this->unidad       = 'kg';
-        $this->categoriaForm = '';
-        $this->showForm     = false;
+        $this->nuevoPlatoNombre = '';
+        $this->addingToMenuId   = null;
     }
 
-    public function startEdit(int $id): void
+    public function cancelarAgregarPlato(): void { $this->addingToMenuId = null; }
+
+    /* ── Toggle / delete dish ─────────────────────────────── */
+
+    public function togglePlato(int $id): void
     {
-        $p = Producto::findOrFail($id);
-        $this->editingId       = $id;
-        $this->editNombre      = $p->nombre;
-        $this->editDescripcion = (string) $p->descripcion;
-        $this->editPrecio      = (string) $p->precio;
-        $this->editUnidad      = $p->unidad;
-        $this->editCategoria   = (string) $p->categoria;
-        $this->showForm        = false;
-    }
-
-    public function guardarEdicion(): void
-    {
-        $this->validate([
-            'editNombre'      => 'required|min:2|max:100',
-            'editPrecio'      => 'required|numeric|min:0',
-            'editUnidad'      => 'required',
-            'editDescripcion' => 'nullable|max:1000',
-            'editCategoria'   => 'nullable|max:60',
-        ], [
-            'editNombre.required' => 'El nombre es obligatorio.',
-            'editNombre.min'      => 'El nombre debe tener al menos 2 caracteres.',
-            'editPrecio.required' => 'El precio es obligatorio.',
-            'editPrecio.numeric'  => 'El precio debe ser un número.',
-            'editPrecio.min'      => 'El precio no puede ser negativo.',
-        ]);
-
-        Producto::findOrFail($this->editingId)->update([
-            'nombre'      => trim($this->editNombre),
-            'descripcion' => trim($this->editDescripcion) ?: null,
-            'precio'      => (float) $this->editPrecio,
-            'unidad'      => $this->editUnidad,
-            'categoria'   => trim($this->editCategoria) ?: null,
-        ]);
-
-        $this->editingId = null;
-    }
-
-    public function cancelarEdicion(): void
-    {
-        $this->editingId = null;
-    }
-
-    public function toggleActivo(int $id): void
-    {
-        $p = Producto::findOrFail($id);
+        $p = Plato::findOrFail($id);
         $p->update(['activo' => !$p->activo]);
     }
 
-    public function confirmarEliminar(int $id): void
+    public function confirmarEliminarPlato(int $id): void { $this->deletingPlatoId = $id; }
+
+    public function eliminarPlato(): void
     {
-        $this->deletingId = $id;
-    }
-
-    public function eliminar(): void
-    {
-        if (!$this->deletingId) return;
-
-        $p = Producto::findOrFail($this->deletingId);
-
-        if ($p->tieneOrdenes()) {
-            session()->flash('error', 'No se puede eliminar: el producto tiene órdenes asociadas.');
-            $this->deletingId = null;
-            return;
+        if ($this->deletingPlatoId) {
+            Plato::findOrFail($this->deletingPlatoId)->delete();
         }
-
-        $p->delete();
-        $this->deletingId = null;
+        $this->deletingPlatoId = null;
     }
 
-    public function cancelarEliminar(): void
+    public function cancelarEliminarPlato(): void { $this->deletingPlatoId = null; }
+
+    /* ── CSV / bulk import ────────────────────────────────── */
+
+    public function openImport(int $menuId): void
     {
-        $this->deletingId = null;
+        $this->importMenuId   = $menuId;
+        $this->csvText        = '';
+        $this->addingToMenuId = null;
+        $this->editPlatoId    = null;
     }
+
+    public function importarCSV(): void
+    {
+        $this->validate(
+            ['csvText' => 'required|string|max:5000'],
+            ['csvText.required' => 'Pegá el listado de platos.']
+        );
+        $menu   = Producto::findOrFail($this->importMenuId);
+        $lineas = array_filter(array_map('trim', explode("\n", $this->csvText)));
+        $orden  = (int) $menu->platos()->max('orden') + 1;
+        $count  = 0;
+        foreach ($lineas as $linea) {
+            $nombre = trim(preg_replace('/^[\*\-\•\·]\s*/', '', $linea));
+            if (mb_strlen($nombre) >= 2) {
+                Plato::create(['producto_id' => $menu->id, 'nombre' => $nombre, 'orden' => $orden++, 'activo' => true]);
+                $count++;
+            }
+        }
+        session()->flash('success', "{$count} plato(s) importados.");
+        $this->importMenuId = null;
+        $this->csvText      = '';
+    }
+
+    public function cancelarImport(): void { $this->importMenuId = null; }
 
 }; ?>
 
 <div>
 
-    {{-- Flash messages --}}
-    @if(session('error'))
-        <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{{ session('error') }}</div>
+    {{-- Flash --}}
+    @if(session('success'))
+        <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)"
+             class="mb-6 badge-green px-4 py-3 rounded-xl text-sm">
+            {{ session('success') }}
+        </div>
     @endif
 
-    {{-- Toolbar --}}
-    <div class="flex flex-wrap items-center gap-3 mb-6">
-        <input type="text" wire:model.live.debounce.300ms="buscar"
-               placeholder="Buscar producto…" class="input w-56">
-        <select wire:model.live="categoria" class="input w-44">
-            <option value="">Todas las categorías</option>
-            @foreach(\App\Models\Producto::$categorias as $cat)
-                <option value="{{ $cat }}">{{ $cat }}</option>
-            @endforeach
-        </select>
-        <div class="flex-1"></div>
-        <button wire:click="$toggle('showForm')" class="btn-primary">
-            {{ $showForm ? 'Cancelar' : '+ Nuevo producto' }}
-        </button>
+    {{-- Header --}}
+    <div class="flex items-end justify-between mb-8">
+        <div>
+            <h2 class="font-condensed font-bold text-2xl" style="color: var(--vd-text); letter-spacing: 0.5px;">Menús</h2>
+            <p class="text-sm mt-1" style="color: var(--vd-muted);">Administrá los platos de cada menú semanal.</p>
+        </div>
     </div>
 
-    {{-- Create form --}}
-    @if($showForm)
-    <div class="card mb-6">
-        <h3 class="font-semibold text-gray-800 mb-1">Nuevo producto</h3>
-        <p class="text-sm text-gray-500 mb-5">Los campos marcados con <span class="text-red-500">*</span> son obligatorios.</p>
-
-        <form wire:submit="guardar" novalidate>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-
-                <div class="md:col-span-2">
-                    <label class="label">Nombre <span class="text-red-500">*</span></label>
-                    <input type="text" wire:model="nombre"
-                           class="input @error('nombre') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
-                           placeholder="ej: Tomate perita">
-                    @error('nombre')
-                        <p class="text-red-500 text-xs mt-1 flex items-center gap-1">
-                            <svg class="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                            {{ $message }}
-                        </p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label class="label">Categoría</label>
-                    <select wire:model="categoriaForm" class="input">
-                        <option value="">Sin categoría</option>
-                        @foreach(\App\Models\Producto::$categorias as $cat)
-                            <option value="{{ $cat }}">{{ $cat }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="md:col-span-3">
-                    <label class="label">Descripción <span class="text-gray-400 font-normal text-xs">(opcional)</span></label>
-                    <textarea wire:model="descripcion"
-                              class="input @error('descripcion') border-red-400 @enderror"
-                              rows="2"
-                              placeholder="Variedad, origen, características…"></textarea>
-                    @error('descripcion')
-                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label class="label">Precio <span class="text-red-500">*</span></label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                        <input type="number" step="0.01" min="0" wire:model="precio"
-                               class="input pl-7 @error('precio') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
-                               placeholder="0,00">
-                    </div>
-                    @error('precio')
-                        <p class="text-red-500 text-xs mt-1 flex items-center gap-1">
-                            <svg class="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                            {{ $message }}
-                        </p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label class="label">Unidad <span class="text-red-500">*</span></label>
-                    <select wire:model="unidad"
-                            class="input @error('unidad') border-red-400 @enderror">
-                        @foreach(\App\Models\Producto::$unidades as $val => $label)
-                            <option value="{{ $val }}">{{ $label }}</option>
-                        @endforeach
-                    </select>
-                    @error('unidad')
-                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
-
-            </div>
-
-            <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                <button type="button" wire:click="$toggle('showForm')" class="btn-secondary">Cancelar</button>
-                <button type="submit" class="btn-primary"
-                        wire:loading.attr="disabled" wire:target="guardar">
-                    <span wire:loading.remove wire:target="guardar">Guardar producto</span>
-                    <span wire:loading wire:target="guardar">Guardando…</span>
-                </button>
-            </div>
-        </form>
-    </div>
-    @endif
-
-    {{-- Delete modal --}}
-    @if($deletingId)
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
-            <h3 class="font-semibold text-gray-900 mb-2">¿Eliminar producto?</h3>
-            <p class="text-sm text-gray-600 mb-6">Esta acción no se puede deshacer.</p>
+    {{-- Delete dish modal --}}
+    @if($deletingPlatoId)
+    <div class="fixed inset-0 z-50 flex items-center justify-center"
+         style="background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);">
+        <div class="w-full max-w-sm rounded-2xl p-6"
+             style="background: var(--vd-surface-2); border: 1px solid rgba(220,68,68,0.35);
+                    box-shadow: 0 24px 60px rgba(0,0,0,0.4);">
+            <h3 class="font-condensed font-bold text-lg mb-2" style="color: var(--vd-text);">¿Eliminar plato?</h3>
+            <p class="text-sm mb-6" style="color: var(--vd-muted);">Esta acción no se puede deshacer.</p>
             <div class="flex justify-end gap-3">
-                <button wire:click="cancelarEliminar" class="btn-secondary">Cancelar</button>
-                <button wire:click="eliminar" class="btn-danger">Eliminar</button>
+                <button wire:click="cancelarEliminarPlato" class="btn-secondary">Cancelar</button>
+                <button wire:click="eliminarPlato" class="btn-danger">Eliminar</button>
             </div>
         </div>
     </div>
     @endif
 
-    {{-- Products table --}}
-    <div class="card p-0 overflow-hidden">
-        <table class="w-full text-sm">
-            <thead class="bg-gray-50 border-b border-gray-200">
-                <tr>
-                    <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Producto</th>
-                    <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Categoría</th>
-                    <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Precio</th>
-                    <th class="text-center px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
-                    <th class="px-6 py-3"></th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-                @forelse($productos as $p)
+    {{-- CSV Import modal --}}
+    @if($importMenuId)
+    @php $importMenu = $menus->firstWhere('id', $importMenuId); @endphp
+    <div class="fixed inset-0 z-50 flex items-center justify-center"
+         style="background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);">
+        <div class="w-full max-w-lg rounded-2xl p-6"
+             style="background: var(--vd-surface-2); border: 1px solid var(--vd-bdr);
+                    box-shadow: 0 24px 60px rgba(0,0,0,0.4);">
+            <h3 class="font-condensed font-bold text-lg mb-1" style="color: var(--vd-text);">
+                Importar platos — {{ $importMenu?->tipoLabel() }}
+            </h3>
+            <p class="text-xs mb-4" style="color: var(--vd-muted);">
+                Pegá un plato por línea. Los guiones o asteriscos iniciales se ignoran.
+            </p>
+            <textarea wire:model="csvText" rows="8" class="input mb-4 font-mono text-xs"
+                      placeholder="* Canelones de pollo a la crema&#10;- Lomo braseado al romero&#10;Tagine de pollo con almendras"></textarea>
+            @error('csvText') <p class="text-xs mb-3" style="color:#fca5a5;">{{ $message }}</p> @enderror
+            <div class="flex justify-end gap-3">
+                <button wire:click="cancelarImport" class="btn-secondary">Cancelar</button>
+                <button wire:click="importarCSV" class="btn-primary"
+                        wire:loading.attr="disabled" wire:target="importarCSV">
+                    <span wire:loading.remove wire:target="importarCSV">Importar</span>
+                    <span wire:loading wire:target="importarCSV">Importando…</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    @endif
 
-                {{-- Inline edit row --}}
-                @if($editingId === $p->id)
-                <tr class="bg-verdeo-50">
-                    <td class="px-4 py-3" colspan="5">
-                        <form wire:submit="guardarEdicion" novalidate>
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
-                                <div class="md:col-span-2">
-                                    <label class="label text-xs">Nombre *</label>
-                                    <input wire:model="editNombre" type="text"
-                                           class="input text-sm @error('editNombre') border-red-400 @enderror">
-                                    @error('editNombre') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                                </div>
-                                <div>
-                                    <label class="label text-xs">Categoría</label>
-                                    <select wire:model="editCategoria" class="input text-sm">
-                                        <option value="">Sin categoría</option>
-                                        @foreach(\App\Models\Producto::$categorias as $cat)
-                                            <option value="{{ $cat }}">{{ $cat }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div>
-                                        <label class="label text-xs">Precio *</label>
-                                        <div class="relative">
-                                            <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
-                                            <input wire:model="editPrecio" type="number" step="0.01" min="0"
-                                                   class="input text-sm pl-5 @error('editPrecio') border-red-400 @enderror">
-                                        </div>
-                                        @error('editPrecio') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                                    </div>
-                                    <div>
-                                        <label class="label text-xs">Unidad *</label>
-                                        <select wire:model="editUnidad" class="input text-sm">
-                                            @foreach(\App\Models\Producto::$unidades as $val => $label)
-                                                <option value="{{ $val }}">{{ $val }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="md:col-span-4">
-                                    <label class="label text-xs">Descripción</label>
-                                    <textarea wire:model="editDescripcion" class="input text-sm" rows="2"></textarea>
-                                </div>
-                            </div>
-                            <div class="flex justify-end gap-2">
-                                <button type="button" wire:click="cancelarEdicion" class="btn-secondary text-xs">Cancelar</button>
-                                <button type="submit" class="btn-primary text-xs"
-                                        wire:loading.attr="disabled" wire:target="guardarEdicion">
-                                    <span wire:loading.remove wire:target="guardarEdicion">Guardar cambios</span>
-                                    <span wire:loading wire:target="guardarEdicion">Guardando…</span>
-                                </button>
-                            </div>
-                        </form>
-                    </td>
-                </tr>
+    {{-- Menu cards --}}
+    <div class="flex flex-col gap-5">
 
-                {{-- Normal row --}}
-                @else
-                <tr class="hover:bg-gray-50 transition-colors">
-                    <td class="px-6 py-4">
-                        <p class="font-medium text-gray-900">{{ $p->nombre }}</p>
-                        @if($p->descripcion)
-                            <p class="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{{ $p->descripcion }}</p>
-                        @endif
-                    </td>
-                    <td class="px-6 py-4 text-gray-500">{{ $p->categoria ?? '—' }}</td>
-                    <td class="px-6 py-4 text-right font-mono font-semibold text-gray-900">
-                        ${{ number_format($p->precio, 2, ',', '.') }}
-                        <span class="text-xs text-gray-400 font-sans">/{{ $p->unidad }}</span>
-                    </td>
-                    <td class="px-6 py-4 text-center">
-                        <button wire:click="toggleActivo({{ $p->id }})"
-                                class="{{ $p->activo ? 'badge-green' : 'badge-gray' }} cursor-pointer hover:opacity-75 transition-opacity">
-                            {{ $p->activo ? 'Activo' : 'Inactivo' }}
-                        </button>
-                    </td>
-                    <td class="px-6 py-4 text-right">
-                        <div class="flex justify-end gap-2">
-                            <button wire:click="startEdit({{ $p->id }})" class="btn-secondary text-xs px-3 py-1.5">
-                                Editar
-                            </button>
-                            <button wire:click="confirmarEliminar({{ $p->id }})"
-                                    class="btn-secondary text-xs px-3 py-1.5 text-red-600 hover:bg-red-50">
-                                Eliminar
-                            </button>
-                        </div>
-                    </td>
-                </tr>
+    @foreach($menus as $menu)
+    @php
+        $isIntuitivo = $menu->esIntuitivo();
+        $badgeClass  = $menu->tipoBadge();
+        $colorAccent = match($menu->tipo) {
+            'keto'        => 'rgba(96,165,250,0.25)',
+            'anti_age'    => 'rgba(78,158,90,0.25)',
+            'vegetariano' => 'rgba(78,158,90,0.25)',
+            'real'        => 'rgba(200,160,48,0.25)',
+            'intuitivo'   => 'rgba(167,139,250,0.25)',
+        };
+    @endphp
+
+    <div class="card p-0 overflow-visible"
+         x-data="{ open: {{ $loop->first ? 'true' : 'false' }} }"
+         style="border-color: {{ $colorAccent }};">
+
+        {{-- Card header --}}
+        <div class="flex items-center justify-between px-6 py-4 cursor-pointer select-none"
+             @click="open = !open"
+             style="border-bottom: 1px solid {{ $colorAccent }};">
+
+            <div class="flex items-center gap-3">
+                <span class="{{ $badgeClass }} text-xs">{{ $menu->tipoLabel() }}</span>
+                @if(!$isIntuitivo)
+                    <span class="text-xs font-condensed font-bold tracking-wider"
+                          style="color: var(--vd-muted);">
+                        {{ $menu->platos->count() }} platos
+                    </span>
+                @endif
+            </div>
+
+            <div class="flex items-center gap-2">
+                {{-- Edit description button --}}
+                <button @click.stop="$wire.startEditMenu({{ $menu->id }})"
+                        class="btn-secondary text-xs px-3 py-1.5"
+                        title="Editar descripción">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    Descripción
+                </button>
+                {{-- Accordion toggle --}}
+                <svg class="w-4 h-4 transition-transform duration-200" :class="open ? 'rotate-180' : ''"
+                     fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                     style="color: var(--vd-muted);">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </div>
+        </div>
+
+        {{-- Edit description form --}}
+        @if($editMenuId === $menu->id)
+        <div class="px-6 py-4" style="border-bottom: 1px solid {{ $colorAccent }}; background: rgba(58,125,68,0.04);">
+            <label class="label">Descripción del menú</label>
+            <textarea wire:model="editMenuDescripcion" rows="3" class="input mb-3"></textarea>
+            @error('editMenuDescripcion') <p class="text-xs mb-2" style="color:#fca5a5;">{{ $message }}</p> @enderror
+            <div class="flex justify-end gap-2">
+                <button wire:click="cancelarEditMenu" class="btn-secondary text-xs">Cancelar</button>
+                <button wire:click="guardarMenu" class="btn-primary text-xs">Guardar</button>
+            </div>
+        </div>
+        @endif
+
+        {{-- Accordion body --}}
+        <div x-show="open" x-collapse>
+            <div class="px-6 py-5">
+
+                {{-- Description --}}
+                @if($menu->descripcion)
+                <p class="text-sm mb-5 italic" style="color: var(--vd-muted); border-left: 3px solid {{ $colorAccent }}; padding-left: 12px;">
+                    {{ $menu->descripcion }}
+                </p>
                 @endif
 
-                @empty
-                <tr>
-                    <td colspan="5" class="px-6 py-12 text-center text-gray-400">
-                        No hay productos. Agregá el primero con el botón de arriba.
-                    </td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
+                @if($isIntuitivo)
+                {{-- Intuitivo special content --}}
+                <div class="rounded-xl p-4" style="background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.2);">
+                    <p class="text-sm font-semibold mb-1" style="color: var(--vd-text);">Menú de selección libre</p>
+                    <p class="text-xs" style="color: var(--vd-muted);">
+                        Los clientes eligen sus propias combinaciones desde la página pública de ventas,
+                        eligiendo de entre los platos disponibles en los demás menús.
+                        La restricción mínima de 5 comidas se aplica en el proceso de compra.
+                    </p>
+                </div>
+
+                @else
+                {{-- Dish list --}}
+                <div class="flex flex-col gap-1">
+                    @foreach($menu->platos as $plato)
+                    <div class="flex items-center gap-3 px-3 py-2 rounded-xl group transition-colors"
+                         style="border: 1px solid transparent;"
+                         onmouseover="this.style.borderColor='{{ $colorAccent }}'; this.style.background='rgba(58,125,68,0.04)'"
+                         onmouseout="this.style.borderColor='transparent'; this.style.background=''">
+
+                        @if($editPlatoId === $plato->id)
+                        {{-- Inline edit --}}
+                        <div class="flex-1 flex items-center gap-2">
+                            <input wire:model="editPlatoNombre" type="text"
+                                   class="input py-1.5 text-sm flex-1"
+                                   wire:keydown.enter="guardarPlato"
+                                   wire:keydown.escape="cancelarEditPlato">
+                            <button wire:click="guardarPlato" class="btn-primary text-xs px-3 py-1.5">Guardar</button>
+                            <button wire:click="cancelarEditPlato" class="btn-secondary text-xs px-3 py-1.5">✕</button>
+                        </div>
+                        @error('editPlatoNombre') <p class="text-xs" style="color:#fca5a5;">{{ $message }}</p> @enderror
+
+                        @else
+                        {{-- Dish number --}}
+                        <span class="font-condensed font-bold text-sm w-5 text-center flex-shrink-0"
+                              style="color: {{ $colorAccent }}; filter: brightness(1.6);">{{ $loop->iteration }}</span>
+
+                        {{-- Dish name --}}
+                        <span class="flex-1 text-sm {{ $plato->activo ? '' : 'opacity-40 line-through' }}"
+                              style="color: var(--vd-text);">{{ $plato->nombre }}</span>
+
+                        {{-- Actions (visible on hover) --}}
+                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button wire:click="startEditPlato({{ $plato->id }})"
+                                    class="btn-secondary text-xs px-2.5 py-1" title="Editar">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                </svg>
+                            </button>
+                            <button wire:click="togglePlato({{ $plato->id }})"
+                                    class="btn-secondary text-xs px-2.5 py-1"
+                                    title="{{ $plato->activo ? 'Desactivar' : 'Activar' }}">
+                                @if($plato->activo)
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                @else
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/>
+                                        <line x1="1" y1="1" x2="23" y2="23"/>
+                                    </svg>
+                                @endif
+                            </button>
+                            <button wire:click="confirmarEliminarPlato({{ $plato->id }})"
+                                    class="btn-secondary text-xs px-2.5 py-1"
+                                    style="color: #fca5a5;"
+                                    onmouseover="this.style.background='rgba(220,68,68,0.12)'"
+                                    onmouseout="this.style.background=''"
+                                    title="Eliminar">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                                    <path d="M10 11v6m4-6v6M9 6V4h6v2"/>
+                                </svg>
+                            </button>
+                        </div>
+                        @endif
+                    </div>
+                    @endforeach
+
+                    {{-- Empty state --}}
+                    @if($menu->platos->isEmpty())
+                    <p class="text-xs text-center py-4" style="color: var(--vd-muted-2);">
+                        Sin platos. Agregá el primero con el botón de abajo.
+                    </p>
+                    @endif
+                </div>
+
+                {{-- Add dish form --}}
+                @if($addingToMenuId === $menu->id)
+                <div class="mt-3 flex items-center gap-2">
+                    <input wire:model="nuevoPlatoNombre" type="text"
+                           class="input py-1.5 text-sm flex-1"
+                           placeholder="Nombre del plato…"
+                           wire:keydown.enter="agregarPlato"
+                           wire:keydown.escape="cancelarAgregarPlato"
+                           x-init="$el.focus()">
+                    <button wire:click="agregarPlato" class="btn-primary text-xs px-4 py-1.5">Agregar</button>
+                    <button wire:click="cancelarAgregarPlato" class="btn-secondary text-xs px-3 py-1.5">✕</button>
+                </div>
+                @error('nuevoPlatoNombre') <p class="text-xs mt-1" style="color:#fca5a5;">{{ $message }}</p> @enderror
+                @endif
+
+                {{-- Action bar --}}
+                <div class="flex items-center gap-2 mt-4 pt-4" style="border-top: 1px solid {{ $colorAccent }};">
+                    <button wire:click="startAddPlato({{ $menu->id }})" class="btn-secondary text-xs px-3 py-1.5">
+                        + Agregar plato
+                    </button>
+                    <button wire:click="openImport({{ $menu->id }})" class="btn-secondary text-xs px-3 py-1.5">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        Importar listado
+                    </button>
+                </div>
+
+                @endif {{-- /isIntuitivo --}}
+            </div>
+        </div>
+
     </div>
+    @endforeach
+
+    </div>
+
 </div>

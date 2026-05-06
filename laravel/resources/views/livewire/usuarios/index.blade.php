@@ -68,12 +68,12 @@ new #[Layout('layouts.app', ['title' => 'Usuarios'])] class extends Component {
     {{-- Confirm delete modal --}}
     @if($deletingId)
     <div class="fixed inset-0 z-50 flex items-center justify-center"
-         style="background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);">
+         style="background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);">
         <div class="w-full max-w-sm rounded-2xl p-6"
-             style="background: rgba(11,24,40,0.95); border: 1px solid rgba(220,68,68,0.35);
-                    box-shadow: 0 24px 60px rgba(0,0,0,0.6);">
-            <h3 class="font-condensed font-bold text-lg mb-2" style="color: #f0f4f0;">¿Eliminar usuario?</h3>
-            <p class="text-sm mb-6" style="color: rgba(240,244,240,0.5);">Esta acción no se puede deshacer.</p>
+             style="background: var(--vd-surface-2); border: 1px solid rgba(220,68,68,0.35);
+                    box-shadow: 0 24px 60px rgba(0,0,0,0.4);">
+            <h3 class="font-condensed font-bold text-lg mb-2" style="color: var(--vd-text);">¿Eliminar usuario?</h3>
+            <p class="text-sm mb-6" style="color: var(--vd-muted);">Esta acción no se puede deshacer.</p>
             <div class="flex justify-end gap-3">
                 <button wire:click="cancelarEliminar" class="btn-secondary">Cancelar</button>
                 <button wire:click="eliminar" class="btn-danger">Eliminar</button>
@@ -111,28 +111,28 @@ new #[Layout('layouts.app', ['title' => 'Usuarios'])] class extends Component {
                                 </div>
                             @endif
                             <div>
-                                <p class="font-semibold" style="color: #f0f4f0;">
+                                <p class="font-semibold" style="color: var(--vd-text);">
                                     {{ $u->nombreCompleto() }}
                                     @if($u->id === auth()->id())
-                                        <span class="text-xs" style="color: rgba(240,244,240,0.3);">(vos)</span>
+                                        <span class="text-xs" style="color: var(--vd-muted-2);">(vos)</span>
                                     @endif
                                 </p>
-                                <p class="text-xs" style="color: rgba(240,244,240,0.4);">{{ $u->email }}</p>
+                                <p class="text-xs" style="color: var(--vd-muted);">{{ $u->email }}</p>
                             </div>
                         </div>
                     </td>
                     <td class="px-6 py-4">
                         @if($u->whatsapp)
-                            <span class="text-xs font-mono" style="color: rgba(240,244,240,0.6);">{{ $u->whatsapp }}</span>
+                            <span class="text-xs font-mono" style="color: var(--vd-text-soft);">{{ $u->whatsapp }}</span>
                         @else
-                            <span class="text-xs" style="color: rgba(240,244,240,0.22);">—</span>
+                            <span class="text-xs" style="color: var(--vd-muted-2);">—</span>
                         @endif
                     </td>
                     <td class="px-6 py-4">
                         @if($u->ciudad)
-                            <span class="text-sm" style="color: rgba(240,244,240,0.6);">{{ $u->ciudad }}</span>
+                            <span class="text-sm" style="color: var(--vd-text-soft);">{{ $u->ciudad }}</span>
                         @else
-                            <span class="text-xs" style="color: rgba(240,244,240,0.22);">—</span>
+                            <span class="text-xs" style="color: var(--vd-muted-2);">—</span>
                         @endif
                     </td>
                     <td class="px-6 py-4">
@@ -149,16 +149,16 @@ new #[Layout('layouts.app', ['title' => 'Usuarios'])] class extends Component {
                         @else
                             <select wire:change="cambiarRol({{ $u->id }}, $event.target.value)"
                                     class="text-xs rounded-full border-0 font-bold cursor-pointer focus:outline-none py-1 pl-2 pr-6 font-condensed tracking-wide uppercase"
-                                    style="background: rgba(58,125,68,0.18); color: #6dbf7a;
+                                    style="background: rgba(58,125,68,0.18); color: var(--vd-green-xlt);
                                            border: 1px solid rgba(78,158,90,0.35);">
                                 @foreach(\App\Models\User::rolesLabels() as $val => $label)
                                     <option value="{{ $val }}" @selected($u->role === $val)
-                                            style="background: #0b1828; color: #f0f4f0;">{{ $label }}</option>
+                                            style="background: var(--vd-bg-2); color: var(--vd-text);">{{ $label }}</option>
                                 @endforeach
                             </select>
                         @endif
                     </td>
-                    <td class="px-6 py-4 text-sm" style="color: rgba(240,244,240,0.4);">
+                    <td class="px-6 py-4 text-sm" style="color: var(--vd-muted);">
                         {{ $u->created_at->format('d/m/Y') }}
                     </td>
                     <td class="px-6 py-4 text-right">
@@ -175,7 +175,7 @@ new #[Layout('layouts.app', ['title' => 'Usuarios'])] class extends Component {
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="6" class="px-6 py-16 text-center" style="color: rgba(240,244,240,0.3);">
+                    <td colspan="6" class="px-6 py-16 text-center" style="color: var(--vd-muted);">
                         No hay usuarios registrados.
                         <br>
                         <a href="{{ route('usuarios.crear') }}" wire:navigate

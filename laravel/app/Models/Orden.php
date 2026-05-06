@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\DB;
 
 class Orden extends Model
 {
+    protected $table = 'ordenes';
+
     protected $fillable = ['numero', 'user_id', 'estado', 'zona', 'notas', 'total'];
 
     protected $casts = [

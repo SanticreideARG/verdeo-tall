@@ -56,7 +56,7 @@ services:
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - /mnt/d/verdeo-docker/mysql:/var/lib/mysql
+      - verdeo_mysql_data:/var/lib/mysql
     ports:
       - "3306:3306"
     networks:
@@ -68,7 +68,7 @@ services:
     container_name: verdeo_redis
     restart: unless-stopped
     volumes:
-      - /mnt/d/verdeo-docker/redis:/data
+      - verdeo_redis_data:/data
     ports:
       - "6379:6379"
     networks:
@@ -194,3 +194,8 @@ services:
 networks:
   verdeo_net:
     driver: bridge
+
+# ─── VOLUMES ────────────────────────────────────────────────────────────────
+volumes:
+  verdeo_mysql_data:
+  verdeo_redis_data:
