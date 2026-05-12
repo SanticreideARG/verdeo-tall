@@ -73,6 +73,39 @@
                     </x-nav-link>
                 </div>
 
+                <div class="pt-5 mt-1" style="border-top: 1px solid var(--vd-bdr-soft);"
+                     x-data="{ open: {{ request()->routeIs('marketing.*') ? 'true' : 'false' }} }">
+                    <button @click="open = !open"
+                            class="flex items-center justify-between w-full px-3 mb-1 py-1 rounded-lg transition-colors duration-150"
+                            onmouseover="this.style.background='var(--vd-nav-hover)'"
+                            onmouseout="this.style.background=''">
+                        <p class="font-condensed font-bold tracking-widest uppercase text-xs"
+                           style="color: var(--vd-muted-2); letter-spacing: 1.6px;">Marketing de Redes</p>
+                        <svg :class="open ? 'rotate-180' : ''"
+                             fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"
+                             style="width:14px;height:14px;flex-shrink:0;transition:transform 0.2s;color:var(--vd-muted-2);">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div x-show="open" x-collapse>
+                        <x-nav-link href="{{ route('marketing.email') }}" :active="request()->routeIs('marketing.email')">
+                            <x-icon-email class="w-4 h-4 mr-3 flex-shrink-0" style="color: #4e9e5a;"/> Email
+                        </x-nav-link>
+                        <x-nav-link href="{{ route('marketing.whatsapp') }}" :active="request()->routeIs('marketing.whatsapp')">
+                            <x-icon-whatsapp class="w-4 h-4 mr-3 flex-shrink-0" style="color: #4e9e5a;"/> WhatsApp
+                        </x-nav-link>
+                        <x-nav-link href="{{ route('marketing.facebook') }}" :active="request()->routeIs('marketing.facebook')">
+                            <x-icon-facebook class="w-4 h-4 mr-3 flex-shrink-0" style="color: #4e9e5a;"/> Facebook
+                        </x-nav-link>
+                        <x-nav-link href="{{ route('marketing.instagram') }}" :active="request()->routeIs('marketing.instagram')">
+                            <x-icon-instagram class="w-4 h-4 mr-3 flex-shrink-0" style="color: #4e9e5a;"/> Instagram
+                        </x-nav-link>
+                        <x-nav-link href="{{ route('marketing.otros') }}" :active="request()->routeIs('marketing.otros')">
+                            <x-icon-megaphone class="w-4 h-4 mr-3 flex-shrink-0" style="color: #4e9e5a;"/> Otros
+                        </x-nav-link>
+                    </div>
+                </div>
+
                 <div class="pt-5 mt-1" style="border-top: 1px solid var(--vd-bdr-soft);">
                     <p class="px-3 mb-2 font-condensed font-bold tracking-widest uppercase text-xs"
                        style="color: var(--vd-muted-2); letter-spacing: 1.6px;">Herramientas</p>

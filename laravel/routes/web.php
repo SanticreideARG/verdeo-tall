@@ -45,6 +45,13 @@ Route::middleware('auth')->group(function () {
     Volt::route('/usuarios/crear',    'usuarios.crear')         ->name('usuarios.crear');
     Volt::route('/ajustes',           'ajustes.index')          ->name('ajustes');
 
+    // ─── Marketing de Redes ───────────────────────────────────────────────────
+    Volt::route('/marketing/email',     'marketing.email')     ->name('marketing.email');
+    Volt::route('/marketing/whatsapp',  'marketing.whatsapp')  ->name('marketing.whatsapp');
+    Volt::route('/marketing/facebook',  'marketing.facebook')  ->name('marketing.facebook');
+    Volt::route('/marketing/instagram', 'marketing.instagram') ->name('marketing.instagram');
+    Volt::route('/marketing/otros',     'marketing.otros')     ->name('marketing.otros');
+
 });
 
 // ─── External tools (links only) ─────────────────────────────────────────────

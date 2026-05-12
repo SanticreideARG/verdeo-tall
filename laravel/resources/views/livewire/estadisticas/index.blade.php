@@ -19,10 +19,10 @@ new #[Layout('layouts.app', ['title' => 'Estadísticas'])] class extends Compone
         ];
 
         // ── Ventas ────────────────────────────────────────────────
-        $totalOrdenes = Orden::count();
-        $ingresos     = Orden::where('estado', 'entregada')->sum('total');
+        $totalOrdenes      = Orden::count();
+        $ingresos          = Orden::where('estado', 'entregada')->sum('total');
         $ordenesPendientes = Orden::where('estado', 'pendiente')->count();
-        $ordenesHoy   = Orden::whereDate('created_at', today())->count();
+        $ordenesHoy        = Orden::whereDate('created_at', today())->count();
 
         $estadosOrdenes = Orden::selectRaw('estado, count(*) as total')
             ->groupBy('estado')
@@ -39,7 +39,7 @@ new #[Layout('layouts.app', ['title' => 'Estadísticas'])] class extends Compone
             ]);
 
         $topProductos = OrdenItem::selectRaw('producto_id, sum(cantidad) as total_cantidad, sum(subtotal) as total_ingresos')
-            ->with('producto:id,nombre,unidad')
+            ->with('producto:id,nombre')
             ->groupBy('producto_id')
             ->orderByDesc('total_ingresos')
             ->limit(5)
@@ -89,10 +89,8 @@ new #[Layout('layouts.app', ['title' => 'Estadísticas'])] class extends Compone
             ]);
 
         return compact(
-            // ventas
             'totalOrdenes', 'ingresos', 'ordenesPendientes', 'ordenesHoy',
             'estadosOrdenes', 'ordenesPorZona', 'topProductos', 'ordenesUltimos7',
-            // sitio
             'totalConv', 'activas', 'esperando', 'convHoy',
             'totalUsuarios', 'convPorZona', 'convUltimos7', 'porRol'
         );
@@ -103,18 +101,18 @@ new #[Layout('layouts.app', ['title' => 'Estadísticas'])] class extends Compone
 <div x-data="{ tab: 'ventas' }">
 
     {{-- Tab selector --}}
-    <div class="flex gap-2 mb-8 border-b border-gray-200 pb-0">
+    <div class="flex gap-2 mb-8 pb-0" style="border-bottom: 1px solid var(--vd-bdr);">
         <button @click="tab = 'ventas'"
-                :class="tab === 'ventas'
-                    ? 'border-verdeo-600 text-verdeo-700 font-semibold'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'"
+                :style="tab === 'ventas'
+                    ? 'border-color: var(--vd-green-lt); color: var(--vd-green-lt); font-weight: 600;'
+                    : 'border-color: transparent; color: var(--vd-muted-2);'"
                 class="pb-3 px-1 border-b-2 text-sm transition-colors -mb-px">
             Ventas
         </button>
         <button @click="tab = 'sitio'"
-                :class="tab === 'sitio'
-                    ? 'border-verdeo-600 text-verdeo-700 font-semibold'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'"
+                :style="tab === 'sitio'
+                    ? 'border-color: var(--vd-green-lt); color: var(--vd-green-lt); font-weight: 600;'
+                    : 'border-color: transparent; color: var(--vd-muted-2);'"
                 class="pb-3 px-1 border-b-2 text-sm transition-colors -mb-px">
             Sitio y Operaciones
         </button>
@@ -126,32 +124,32 @@ new #[Layout('layouts.app', ['title' => 'Estadísticas'])] class extends Compone
         {{-- Top cards --}}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="card text-center">
-                <p class="text-3xl font-bold text-gray-900">{{ $totalOrdenes }}</p>
-                <p class="text-sm text-gray-500 mt-1">Órdenes totales</p>
+                <p class="text-3xl font-bold" style="color: var(--vd-text);">{{ $totalOrdenes }}</p>
+                <p class="text-sm mt-1" style="color: var(--vd-muted-2);">Órdenes totales</p>
             </div>
             <div class="card text-center">
-                <p class="text-3xl font-bold text-yellow-600">{{ $ordenesPendientes }}</p>
-                <p class="text-sm text-gray-500 mt-1">Pendientes</p>
+                <p class="text-3xl font-bold" style="color: #f59e0b;">{{ $ordenesPendientes }}</p>
+                <p class="text-sm mt-1" style="color: var(--vd-muted-2);">Pendientes</p>
             </div>
             <div class="card text-center">
-                <p class="text-3xl font-bold text-gray-700">{{ $ordenesHoy }}</p>
-                <p class="text-sm text-gray-500 mt-1">Órdenes hoy</p>
+                <p class="text-3xl font-bold" style="color: var(--vd-muted);">{{ $ordenesHoy }}</p>
+                <p class="text-sm mt-1" style="color: var(--vd-muted-2);">Órdenes hoy</p>
             </div>
             <div class="card text-center">
-                <p class="text-2xl font-bold text-verdeo-700">${{ number_format($ingresos, 0, ',', '.') }}</p>
-                <p class="text-sm text-gray-500 mt-1">Ingresos (entregadas)</p>
+                <p class="text-2xl font-bold" style="color: var(--vd-green-lt);">${{ number_format($ingresos, 0, ',', '.') }}</p>
+                <p class="text-sm mt-1" style="color: var(--vd-muted-2);">Ingresos (entregadas)</p>
             </div>
         </div>
 
         {{-- Estado breakdown --}}
         <div class="card">
-            <h3 class="font-semibold text-gray-800 mb-4">Órdenes por estado</h3>
+            <h3 class="font-semibold mb-4" style="color: var(--vd-text);">Órdenes por estado</h3>
             <div class="flex flex-wrap gap-4">
                 @foreach(\App\Models\Orden::$estados as $val => $label)
                     @php $count = $estadosOrdenes[$val] ?? 0; @endphp
                     <div class="flex items-center gap-2">
                         <span class="{{ \App\Models\Orden::$estadoBadge[$val] }}">{{ $label }}</span>
-                        <span class="font-bold text-gray-900">{{ $count }}</span>
+                        <span class="font-bold" style="color: var(--vd-text);">{{ $count }}</span>
                     </div>
                 @endforeach
             </div>
@@ -161,26 +159,29 @@ new #[Layout('layouts.app', ['title' => 'Estadísticas'])] class extends Compone
 
             {{-- Órdenes por zona --}}
             <div class="card p-0 overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="font-semibold text-gray-800">Órdenes por zona</h3>
+                <div class="px-6 py-4" style="border-bottom: 1px solid var(--vd-bdr);">
+                    <h3 class="font-semibold" style="color: var(--vd-text);">Órdenes por zona</h3>
                 </div>
                 <table class="w-full text-sm">
-                    <thead class="bg-gray-50">
+                    <thead style="background: var(--vd-bg-2);">
                         <tr>
-                            <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Zona</th>
-                            <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Órdenes</th>
-                            <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Ingresos</th>
+                            <th class="text-left px-6 py-3 text-xs font-semibold uppercase"
+                                style="color: var(--vd-muted-2);">Zona</th>
+                            <th class="text-right px-6 py-3 text-xs font-semibold uppercase"
+                                style="color: var(--vd-muted-2);">Órdenes</th>
+                            <th class="text-right px-6 py-3 text-xs font-semibold uppercase"
+                                style="color: var(--vd-muted-2);">Ingresos</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100">
+                    <tbody>
                         @forelse($ordenesPorZona as $z)
-                        <tr>
-                            <td class="px-6 py-3 font-medium text-gray-700">{{ $z['zona'] }}</td>
-                            <td class="px-6 py-3 text-right font-semibold text-gray-900">{{ $z['total'] }}</td>
-                            <td class="px-6 py-3 text-right font-mono text-verdeo-700">${{ number_format($z['ingresos'], 0, ',', '.') }}</td>
+                        <tr style="border-bottom: 1px solid var(--vd-bdr-soft);">
+                            <td class="px-6 py-3 font-medium" style="color: var(--vd-muted);">{{ $z['zona'] }}</td>
+                            <td class="px-6 py-3 text-right font-semibold" style="color: var(--vd-text);">{{ $z['total'] }}</td>
+                            <td class="px-6 py-3 text-right font-mono" style="color: var(--vd-green-lt);">${{ number_format($z['ingresos'], 0, ',', '.') }}</td>
                         </tr>
                         @empty
-                        <tr><td colspan="3" class="px-6 py-6 text-center text-gray-400">Sin órdenes</td></tr>
+                        <tr><td colspan="3" class="px-6 py-6 text-center" style="color: var(--vd-muted-2);">Sin órdenes</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -188,26 +189,29 @@ new #[Layout('layouts.app', ['title' => 'Estadísticas'])] class extends Compone
 
             {{-- Top productos --}}
             <div class="card p-0 overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="font-semibold text-gray-800">Top 5 productos</h3>
+                <div class="px-6 py-4" style="border-bottom: 1px solid var(--vd-bdr);">
+                    <h3 class="font-semibold" style="color: var(--vd-text);">Top 5 menús</h3>
                 </div>
                 <table class="w-full text-sm">
-                    <thead class="bg-gray-50">
+                    <thead style="background: var(--vd-bg-2);">
                         <tr>
-                            <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Producto</th>
-                            <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Vendido</th>
-                            <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Ingresos</th>
+                            <th class="text-left px-6 py-3 text-xs font-semibold uppercase"
+                                style="color: var(--vd-muted-2);">Menú</th>
+                            <th class="text-right px-6 py-3 text-xs font-semibold uppercase"
+                                style="color: var(--vd-muted-2);">Vendido</th>
+                            <th class="text-right px-6 py-3 text-xs font-semibold uppercase"
+                                style="color: var(--vd-muted-2);">Ingresos</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100">
+                    <tbody>
                         @forelse($topProductos as $tp)
-                        <tr>
-                            <td class="px-6 py-3 font-medium text-gray-700">{{ $tp->producto?->nombre ?? '—' }}</td>
-                            <td class="px-6 py-3 text-right text-gray-700">{{ number_format($tp->total_cantidad, 2, ',', '.') }} {{ $tp->producto?->unidad }}</td>
-                            <td class="px-6 py-3 text-right font-mono text-verdeo-700">${{ number_format($tp->total_ingresos, 0, ',', '.') }}</td>
+                        <tr style="border-bottom: 1px solid var(--vd-bdr-soft);">
+                            <td class="px-6 py-3 font-medium" style="color: var(--vd-muted);">{{ $tp->producto?->nombre ?? '—' }}</td>
+                            <td class="px-6 py-3 text-right" style="color: var(--vd-muted);">{{ number_format($tp->total_cantidad, 2, ',', '.') }}</td>
+                            <td class="px-6 py-3 text-right font-mono" style="color: var(--vd-green-lt);">${{ number_format($tp->total_ingresos, 0, ',', '.') }}</td>
                         </tr>
                         @empty
-                        <tr><td colspan="3" class="px-6 py-6 text-center text-gray-400">Sin ventas registradas</td></tr>
+                        <tr><td colspan="3" class="px-6 py-6 text-center" style="color: var(--vd-muted-2);">Sin ventas registradas</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -217,30 +221,31 @@ new #[Layout('layouts.app', ['title' => 'Estadísticas'])] class extends Compone
 
         {{-- Actividad últimos 7 días --}}
         <div class="card p-0 overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-200">
-                <h3 class="font-semibold text-gray-800">Actividad — últimos 7 días</h3>
+            <div class="px-6 py-4" style="border-bottom: 1px solid var(--vd-bdr);">
+                <h3 class="font-semibold" style="color: var(--vd-text);">Actividad — últimos 7 días</h3>
             </div>
             <table class="w-full text-sm">
-                <thead class="bg-gray-50">
+                <thead style="background: var(--vd-bg-2);">
                     <tr>
-                        <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Día</th>
-                        <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Órdenes</th>
-                        <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Ingresos</th>
+                        <th class="text-left px-6 py-3 text-xs font-semibold uppercase"
+                            style="color: var(--vd-muted-2);">Día</th>
+                        <th class="text-right px-6 py-3 text-xs font-semibold uppercase"
+                            style="color: var(--vd-muted-2);">Órdenes</th>
+                        <th class="text-right px-6 py-3 text-xs font-semibold uppercase"
+                            style="color: var(--vd-muted-2);">Ingresos</th>
                         <th class="px-6 py-3 w-40"></th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody>
                     @php $maxOrd = $ordenesUltimos7->max('ordenes') ?: 1; @endphp
                     @foreach($ordenesUltimos7 as $d)
-                    <tr>
-                        <td class="px-6 py-3 text-gray-600">{{ $d['fecha'] }}</td>
-                        <td class="px-6 py-3 text-right font-semibold text-gray-900">{{ $d['ordenes'] }}</td>
-                        <td class="px-6 py-3 text-right font-mono text-verdeo-700">${{ number_format($d['ingresos'], 0, ',', '.') }}</td>
+                    <tr style="border-bottom: 1px solid var(--vd-bdr-soft);">
+                        <td class="px-6 py-3" style="color: var(--vd-muted);">{{ $d['fecha'] }}</td>
+                        <td class="px-6 py-3 text-right font-semibold" style="color: var(--vd-text);">{{ $d['ordenes'] }}</td>
+                        <td class="px-6 py-3 text-right font-mono" style="color: var(--vd-green-lt);">${{ number_format($d['ingresos'], 0, ',', '.') }}</td>
                         <td class="px-6 py-3">
-                            <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
-                                <div class="h-full bg-verdeo-400 rounded-full"
-                                     style="width: {{ $maxOrd > 0 ? round($d['ordenes'] / $maxOrd * 100) : 0 }}%">
-                                </div>
+                            <div class="h-2 rounded-full overflow-hidden" style="background: var(--vd-bg-2);">
+                                <div class="h-full rounded-full" style="width: {{ $maxOrd > 0 ? round($d['ordenes'] / $maxOrd * 100) : 0 }}%; background: var(--vd-green-lt);"></div>
                             </div>
                         </td>
                     </tr>
@@ -257,20 +262,20 @@ new #[Layout('layouts.app', ['title' => 'Estadísticas'])] class extends Compone
         {{-- Top cards --}}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="card text-center">
-                <p class="text-3xl font-bold text-gray-900">{{ $totalConv }}</p>
-                <p class="text-sm text-gray-500 mt-1">Conversaciones totales</p>
+                <p class="text-3xl font-bold" style="color: var(--vd-text);">{{ $totalConv }}</p>
+                <p class="text-sm mt-1" style="color: var(--vd-muted-2);">Conversaciones totales</p>
             </div>
             <div class="card text-center">
-                <p class="text-3xl font-bold text-verdeo-600">{{ $activas }}</p>
-                <p class="text-sm text-gray-500 mt-1">Abiertas</p>
+                <p class="text-3xl font-bold" style="color: var(--vd-green-lt);">{{ $activas }}</p>
+                <p class="text-sm mt-1" style="color: var(--vd-muted-2);">Abiertas</p>
             </div>
             <div class="card text-center">
-                <p class="text-3xl font-bold text-yellow-600">{{ $esperando }}</p>
-                <p class="text-sm text-gray-500 mt-1">En espera</p>
+                <p class="text-3xl font-bold" style="color: #f59e0b;">{{ $esperando }}</p>
+                <p class="text-sm mt-1" style="color: var(--vd-muted-2);">En espera</p>
             </div>
             <div class="card text-center">
-                <p class="text-3xl font-bold text-gray-700">{{ $convHoy }}</p>
-                <p class="text-sm text-gray-500 mt-1">Nuevas hoy</p>
+                <p class="text-3xl font-bold" style="color: var(--vd-muted);">{{ $convHoy }}</p>
+                <p class="text-sm mt-1" style="color: var(--vd-muted-2);">Nuevas hoy</p>
             </div>
         </div>
 
@@ -278,29 +283,33 @@ new #[Layout('layouts.app', ['title' => 'Estadísticas'])] class extends Compone
 
             {{-- Conversaciones por zona --}}
             <div class="card p-0 overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="font-semibold text-gray-800">Conversaciones por zona</h3>
+                <div class="px-6 py-4" style="border-bottom: 1px solid var(--vd-bdr);">
+                    <h3 class="font-semibold" style="color: var(--vd-text);">Conversaciones por zona</h3>
                 </div>
                 <table class="w-full text-sm">
-                    <thead class="bg-gray-50">
+                    <thead style="background: var(--vd-bg-2);">
                         <tr>
-                            <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Zona</th>
-                            <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Total</th>
-                            <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Abiertas</th>
-                            <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Cerradas</th>
+                            <th class="text-left px-6 py-3 text-xs font-semibold uppercase"
+                                style="color: var(--vd-muted-2);">Zona</th>
+                            <th class="text-right px-6 py-3 text-xs font-semibold uppercase"
+                                style="color: var(--vd-muted-2);">Total</th>
+                            <th class="text-right px-6 py-3 text-xs font-semibold uppercase"
+                                style="color: var(--vd-muted-2);">Abiertas</th>
+                            <th class="text-right px-6 py-3 text-xs font-semibold uppercase"
+                                style="color: var(--vd-muted-2);">Cerradas</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100">
+                    <tbody>
                         @foreach($convPorZona as $z)
-                        <tr>
-                            <td class="px-6 py-3 font-medium text-gray-700">{{ $z['zona'] }}</td>
-                            <td class="px-6 py-3 text-right font-semibold text-gray-900">{{ $z['total'] }}</td>
+                        <tr style="border-bottom: 1px solid var(--vd-bdr-soft);">
+                            <td class="px-6 py-3 font-medium" style="color: var(--vd-muted);">{{ $z['zona'] }}</td>
+                            <td class="px-6 py-3 text-right font-semibold" style="color: var(--vd-text);">{{ $z['total'] }}</td>
                             <td class="px-6 py-3 text-right"><span class="badge-green">{{ $z['activas'] }}</span></td>
                             <td class="px-6 py-3 text-right"><span class="badge-gray">{{ $z['cerradas'] }}</span></td>
                         </tr>
                         @endforeach
                         @if($convPorZona->isEmpty())
-                        <tr><td colspan="4" class="px-6 py-6 text-center text-gray-400">Sin datos</td></tr>
+                        <tr><td colspan="4" class="px-6 py-6 text-center" style="color: var(--vd-muted-2);">Sin datos</td></tr>
                         @endif
                     </tbody>
                 </table>
@@ -308,28 +317,29 @@ new #[Layout('layouts.app', ['title' => 'Estadísticas'])] class extends Compone
 
             {{-- Conversaciones últimos 7 días --}}
             <div class="card p-0 overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="font-semibold text-gray-800">Conversaciones — últimos 7 días</h3>
+                <div class="px-6 py-4" style="border-bottom: 1px solid var(--vd-bdr);">
+                    <h3 class="font-semibold" style="color: var(--vd-text);">Conversaciones — últimos 7 días</h3>
                 </div>
                 <table class="w-full text-sm">
-                    <thead class="bg-gray-50">
+                    <thead style="background: var(--vd-bg-2);">
                         <tr>
-                            <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Día</th>
-                            <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Nuevas</th>
+                            <th class="text-left px-6 py-3 text-xs font-semibold uppercase"
+                                style="color: var(--vd-muted-2);">Día</th>
+                            <th class="text-right px-6 py-3 text-xs font-semibold uppercase"
+                                style="color: var(--vd-muted-2);">Nuevas</th>
                             <th class="px-6 py-3 w-32"></th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100">
+                    <tbody>
                         @php $maxConv = $convUltimos7->max('total') ?: 1; @endphp
                         @foreach($convUltimos7 as $d)
-                        <tr>
-                            <td class="px-6 py-3 text-gray-600">{{ $d['fecha'] }}</td>
-                            <td class="px-6 py-3 text-right font-semibold text-gray-900">{{ $d['total'] }}</td>
+                        <tr style="border-bottom: 1px solid var(--vd-bdr-soft);">
+                            <td class="px-6 py-3" style="color: var(--vd-muted);">{{ $d['fecha'] }}</td>
+                            <td class="px-6 py-3 text-right font-semibold" style="color: var(--vd-text);">{{ $d['total'] }}</td>
                             <td class="px-6 py-3">
-                                <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
-                                    <div class="h-full bg-verdeo-400 rounded-full"
-                                         style="width: {{ $maxConv > 0 ? round($d['total'] / $maxConv * 100) : 0 }}%">
-                                    </div>
+                                <div class="h-2 rounded-full overflow-hidden" style="background: var(--vd-bg-2);">
+                                    <div class="h-full rounded-full"
+                                         style="width: {{ $maxConv > 0 ? round($d['total'] / $maxConv * 100) : 0 }}%; background: var(--vd-green-lt);"></div>
                                 </div>
                             </td>
                         </tr>
@@ -342,24 +352,24 @@ new #[Layout('layouts.app', ['title' => 'Estadísticas'])] class extends Compone
 
         {{-- Usuarios por tipo --}}
         <div class="card p-0 overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <h3 class="font-semibold text-gray-800">Usuarios por tipo</h3>
-                <span class="text-sm text-gray-500">{{ $totalUsuarios }} en total</span>
+            <div class="px-6 py-4 flex items-center justify-between" style="border-bottom: 1px solid var(--vd-bdr);">
+                <h3 class="font-semibold" style="color: var(--vd-text);">Usuarios por tipo</h3>
+                <span class="text-sm" style="color: var(--vd-muted-2);">{{ $totalUsuarios }} en total</span>
             </div>
-            <div class="grid grid-cols-2 md:grid-cols-4 divide-x divide-gray-100">
-                @php
-                    $rolColors = [
-                        'Administrador' => 'text-verdeo-700',
-                        'Resp. de Zona' => 'text-blue-700',
-                        'Colaborador'   => 'text-gray-700',
-                        'Cliente'       => 'text-yellow-700',
-                    ];
-                @endphp
+            @php
+                $rolColors = [
+                    'Administrador' => 'var(--vd-green-lt)',
+                    'Resp. de Zona' => '#60a5fa',
+                    'Colaborador'   => 'var(--vd-muted)',
+                    'Cliente'       => '#f59e0b',
+                ];
+            @endphp
+            <div class="grid grid-cols-2 md:grid-cols-4" style="border-top: 1px solid var(--vd-bdr-soft);">
                 @foreach(\App\Models\User::rolesLabels() as $val => $label)
                     @php $count = $porRol->firstWhere('rol', $label)['total'] ?? 0; @endphp
-                    <div class="px-6 py-5 text-center">
-                        <p class="text-2xl font-bold {{ $rolColors[$label] ?? 'text-gray-700' }}">{{ $count }}</p>
-                        <p class="text-sm text-gray-500 mt-1">{{ $label }}</p>
+                    <div class="px-6 py-5 text-center" style="border-right: 1px solid var(--vd-bdr-soft);">
+                        <p class="text-2xl font-bold" style="color: {{ $rolColors[$label] ?? 'var(--vd-text)' }};">{{ $count }}</p>
+                        <p class="text-sm mt-1" style="color: var(--vd-muted-2);">{{ $label }}</p>
                     </div>
                 @endforeach
             </div>

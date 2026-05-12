@@ -7,7 +7,7 @@ use App\Models\Enlace;
 new #[Layout('layouts.app', ['title' => 'Enlaces'])] class extends Component {
 
     public string $titulo      = '';
-    public string $url         = '';
+    public string $enlaceUrl   = '';
     public string $descripcion = '';
 
     public ?int   $editingId       = null;
@@ -28,27 +28,27 @@ new #[Layout('layouts.app', ['title' => 'Enlaces'])] class extends Component {
     {
         $this->validate([
             'titulo'      => 'required|min:2|max:100',
-            'url'         => 'required|url|max:255',
+            'enlaceUrl'   => 'required|url|max:255',
             'descripcion' => 'nullable|max:200',
         ], [
-            'titulo.required' => 'El título es obligatorio.',
-            'titulo.min'      => 'Mínimo 2 caracteres.',
-            'url.required'    => 'La URL es obligatoria.',
-            'url.url'         => 'Ingresá una URL válida (con https://).',
+            'titulo.required'    => 'El título es obligatorio.',
+            'titulo.min'         => 'Mínimo 2 caracteres.',
+            'enlaceUrl.required' => 'La URL es obligatoria.',
+            'enlaceUrl.url'      => 'Ingresá una URL válida (con https://).',
         ]);
 
         Enlace::create([
             'titulo'      => trim($this->titulo),
-            'url'         => trim($this->url),
+            'url'         => trim($this->enlaceUrl),
             'descripcion' => trim($this->descripcion) ?: null,
             'orden'       => (int) Enlace::max('orden') + 1,
             'activo'      => true,
         ]);
 
         $this->titulo      = '';
-        $this->url         = '';
+        $this->enlaceUrl   = '';
         $this->descripcion = '';
-        $this->dispatch('enlaceGuardado');
+        $this->dispatch('enlaceguardado');
     }
 
     /* ── Edit ────────────────────────────────────────────── */
@@ -160,10 +160,10 @@ new #[Layout('layouts.app', ['title' => 'Enlaces'])] class extends Component {
                     </div>
                     <div>
                         <label class="label">URL <span style="color:#fca5a5">*</span></label>
-                        <input type="text" wire:model="url"
-                               class="input @error('url') border-red-400 @enderror"
+                        <input type="text" wire:model="enlaceUrl"
+                               class="input @error('enlaceUrl') border-red-400 @enderror"
                                placeholder="https://drive.google.com/...">
-                        @error('url') <p class="text-xs mt-1" style="color:#fca5a5;">{{ $message }}</p> @enderror
+                        @error('enlaceUrl') <p class="text-xs mt-1" style="color:#fca5a5;">{{ $message }}</p> @enderror
                     </div>
                     <div class="sm:col-span-2">
                         <label class="label">Descripción <span style="color: var(--vd-muted-2);">(opcional)</span></label>

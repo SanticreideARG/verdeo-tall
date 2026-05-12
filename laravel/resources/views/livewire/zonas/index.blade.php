@@ -2,6 +2,7 @@
 
 use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
+use App\Models\Conversacion;
 
 new #[Layout('layouts.app', ['title' => 'Zonas'])] class extends Component {
 
@@ -10,10 +11,20 @@ new #[Layout('layouts.app', ['title' => 'Zonas'])] class extends Component {
     public function mount(): void
     {
         $this->zonas = [
-            ['id' => 'bsas',      'nombre' => 'Buenos Aires',    'numero' => '5491158393179', 'modelo' => 'mistral', 'activa' => true],
-            ['id' => 'valle_nqn', 'nombre' => 'Valle NQN / Roca','numero' => '5492995493102', 'modelo' => 'mistral', 'activa' => true],
-            ['id' => 'cordoba',   'nombre' => 'Córdoba',         'numero' => '5493513007925', 'modelo' => 'mistral', 'activa' => true],
-            ['id' => 'mendoza',   'nombre' => 'Mendoza',         'numero' => '5492615117163', 'modelo' => 'mistral', 'activa' => true],
+            ['id' => 'bsas',      'nombre' => 'Buenos Aires',    'numero' => '5491158393179', 'modelo' => 'Mistral', 'activa' => true],
+            ['id' => 'valle_nqn', 'nombre' => 'Valle NQN / Roca','numero' => '5492995493102', 'modelo' => 'Mistral', 'activa' => true],
+            ['id' => 'cordoba',   'nombre' => 'Córdoba',         'numero' => '5493513007925', 'modelo' => 'Mistral', 'activa' => true],
+            ['id' => 'mendoza',   'nombre' => 'Mendoza',         'numero' => '5492615117163', 'modelo' => 'Mistral', 'activa' => true],
+        ];
+    }
+
+    public function with(): array
+    {
+        return [
+            'convActivas' => Conversacion::activas()
+                ->selectRaw('zona, count(*) as total')
+                ->groupBy('zona')
+                ->pluck('total', 'zona'),
         ];
     }
 
@@ -34,33 +45,35 @@ new #[Layout('layouts.app', ['title' => 'Zonas'])] class extends Component {
         <div class="card">
             <div class="flex items-start justify-between mb-4">
                 <div>
-                    <h3 class="font-semibold text-gray-900">{{ $zona['nombre'] }}</h3>
-                    <p class="text-sm text-gray-500 mt-0.5">+{{ $zona['numero'] }}</p>
+                    <h3 class="font-semibold" style="color: var(--vd-text);">{{ $zona['nombre'] }}</h3>
+                    <p class="text-sm mt-0.5" style="color: var(--vd-muted);">+{{ $zona['numero'] }}</p>
                 </div>
                 <button wire:click="toggleZona('{{ $zona['id'] }}')"
-                        class="{{ $zona['activa'] ? 'badge-green' : 'badge-gray' }} cursor-pointer">
+                        class="{{ $zona['activa'] ? 'badge-green' : 'badge-gray' }} cursor-pointer select-none">
                     {{ $zona['activa'] ? 'Activa' : 'Inactiva' }}
                 </button>
             </div>
 
             <div class="space-y-2 text-sm">
-                <div class="flex justify-between text-gray-600">
-                    <span>Modelo IA</span>
-                    <span class="font-medium text-gray-800">{{ $zona['modelo'] }}</span>
+                <div class="flex justify-between">
+                    <span style="color: var(--vd-muted);">Modelo IA</span>
+                    <span class="font-medium" style="color: var(--vd-text);">{{ $zona['modelo'] }}</span>
                 </div>
-                <div class="flex justify-between text-gray-600">
-                    <span>WhatsApp</span>
+                <div class="flex justify-between">
+                    <span style="color: var(--vd-muted);">WhatsApp</span>
                     <span class="badge-gray">Sin conectar</span>
                 </div>
-                <div class="flex justify-between text-gray-600">
-                    <span>Conversaciones activas</span>
-                    <span class="font-medium text-gray-800">0</span>
+                <div class="flex justify-between">
+                    <span style="color: var(--vd-muted);">Conversaciones activas</span>
+                    <span class="font-medium" style="color: var(--vd-text);">{{ $convActivas[$zona['id']] ?? 0 }}</span>
                 </div>
             </div>
 
-            <div class="mt-4 pt-4 border-t border-gray-100 flex gap-2">
-                <button class="btn-secondary text-xs px-3 py-1.5">Conectar WhatsApp</button>
-                <button class="btn-secondary text-xs px-3 py-1.5">Ver logs</button>
+            <div class="mt-4 pt-4 flex gap-2" style="border-top: 1px solid var(--vd-bdr-soft);">
+                <a href="{{ route('n8n') }}" target="_blank"
+                   class="btn-secondary text-xs px-3 py-1.5">Conectar WhatsApp</a>
+                <a href="/horizon" target="_blank"
+                   class="btn-secondary text-xs px-3 py-1.5">Ver logs</a>
             </div>
         </div>
         @endforeach

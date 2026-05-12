@@ -19,6 +19,13 @@ new #[Layout('layouts.app', ['title' => 'Nuevo usuario'])] class extends Compone
     public string $password  = '';
     public        $foto      = null;
 
+    public function setRole(string $rol): void
+    {
+        if (array_key_exists($rol, User::rolesLabels())) {
+            $this->role = $rol;
+        }
+    }
+
     public function guardar(): void
     {
         $this->validate([
@@ -125,6 +132,7 @@ new #[Layout('layouts.app', ['title' => 'Nuevo usuario'])] class extends Compone
                 <div class="flex flex-col gap-2 mt-3">
                     @foreach(\App\Models\User::rolesLabels() as $val => $label)
                     @php
+                        $selected = $role === $val;
                         $desc = match($val) {
                             'admin'            => 'Acceso total al sistema',
                             'responsable_zona' => 'Gestiona pedidos de su zona',
@@ -138,24 +146,24 @@ new #[Layout('layouts.app', ['title' => 'Nuevo usuario'])] class extends Compone
                             'cliente'          => '#c8a030',
                         };
                     @endphp
-                    <label class="flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all duration-150"
-                           style="border: 1px solid var(--vd-bdr-soft);"
-                           wire:click="$set('role', '{{ $val }}')"
-                           :class="$wire.role === '{{ $val }}' ? 'border-color:{{ $color }}' : ''"
-                           x-bind:style="$wire.role === '{{ $val }}' ? 'background: rgba(58,125,68,0.12); border-color: {{ $color }}55' : ''">
-                        <input type="radio" name="role" value="{{ $val }}"
-                               wire:model="role" class="sr-only">
+                    <button type="button" wire:click="setRole('{{ $val }}')"
+                            class="flex items-start gap-3 p-3 rounded-xl cursor-pointer select-none transition-colors duration-150 w-full text-left"
+                            style="{{ $selected
+                                ? "background: rgba(58,125,68,0.12); border: 1px solid {$color}55;"
+                                : 'border: 1px solid var(--vd-bdr-soft);' }}">
                         <div class="w-4 h-4 rounded-full mt-0.5 flex-shrink-0 flex items-center justify-center"
-                             style="border: 2px solid {{ $color }};"
-                             x-bind:style="$wire.role === '{{ $val }}' ? 'background: {{ $color }}; border-color: {{ $color }}' : 'border-color: {{ $color }}80'">
-                            <div class="w-1.5 h-1.5 rounded-full bg-white"
-                                 x-show="$wire.role === '{{ $val }}'"></div>
+                             style="{{ $selected
+                                 ? "background: {$color}; border: 2px solid {$color};"
+                                 : "border: 2px solid {$color}80;" }}">
+                            @if($selected)
+                                <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+                            @endif
                         </div>
                         <div>
                             <p class="text-sm font-semibold" style="color: var(--vd-text);">{{ $label }}</p>
                             <p class="text-xs" style="color: var(--vd-muted);">{{ $desc }}</p>
                         </div>
-                    </label>
+                    </button>
                     @endforeach
                 </div>
                 @error('role')
