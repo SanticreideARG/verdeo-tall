@@ -28,7 +28,13 @@ class User extends Authenticatable
         'direccion',
         'zona',
         'foto',
+        'numero_cliente',
     ];
+
+    public static function nextNumeroCliente(): int
+    {
+        return (static::whereNotNull('numero_cliente')->max('numero_cliente') ?? 0) + 1;
+    }
 
     public function nombreCompleto(): string
     {

@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
+Volt::route('/registro', 'registro.index')->name('registro')->middleware('guest');
+
 Route::get('/login', function () {
     return view('auth.login');
 })->name('login')->middleware('guest');

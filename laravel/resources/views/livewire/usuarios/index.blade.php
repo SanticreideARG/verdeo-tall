@@ -75,7 +75,7 @@ new #[Layout('layouts.app', ['title' => 'Usuarios'])] class extends Component {
 
     <div class="flex items-center justify-end mb-6 gap-3 flex-wrap">
         @if(auth()->user()->isAdmin())
-            <a href="{{ route('usuarios.crear-cliente') }}" wire:navigate
+<a href="{{ route('usuarios.crear-cliente') }}" wire:navigate
                class="btn-secondary text-sm flex items-center gap-2"
                style="border-color: rgba(200,160,48,0.4); color: #c8a030;"
                onmouseover="this.style.background='rgba(200,160,48,0.08)'"
@@ -120,6 +120,7 @@ new #[Layout('layouts.app', ['title' => 'Usuarios'])] class extends Component {
         <table class="w-full text-sm">
             <thead>
                 <tr style="border-bottom: 1px solid var(--vd-bdr-soft);">
+                    <th class="text-left px-6 py-3 font-condensed text-xs uppercase tracking-wide" style="color: var(--vd-muted-2);">#</th>
                     <th class="text-left px-6 py-3 font-condensed text-xs uppercase tracking-wide" style="color: var(--vd-muted-2);">Usuario</th>
                     @if(auth()->user()->isAdmin())
                         <th class="text-left px-6 py-3 font-condensed text-xs uppercase tracking-wide" style="color: var(--vd-muted-2);">WhatsApp</th>
@@ -138,6 +139,15 @@ new #[Layout('layouts.app', ['title' => 'Usuarios'])] class extends Component {
                     onclick="window.location.href='{{ route('usuarios.ver', $u) }}'"
                     onmouseover="this.style.background='var(--vd-nav-hover)'"
                     onmouseout="this.style.background=''">
+                    <td class="px-6 py-4">
+                        @if($u->numero_cliente)
+                            <span class="font-mono text-xs font-bold" style="color: #c8a030;">
+                                #{{ str_pad($u->numero_cliente, 4, '0', STR_PAD_LEFT) }}
+                            </span>
+                        @else
+                            <span style="color: var(--vd-muted-2);">—</span>
+                        @endif
+                    </td>
                     <td class="px-6 py-4">
                         <div class="flex items-center gap-3">
                             @if($u->foto)
@@ -220,7 +230,7 @@ new #[Layout('layouts.app', ['title' => 'Usuarios'])] class extends Component {
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="{{ auth()->user()->isAdmin() ? 6 : 3 }}"
+                    <td colspan="{{ auth()->user()->isAdmin() ? 7 : 4 }}"
                         class="px-6 py-16 text-center" style="color: var(--vd-muted);">
                         No hay usuarios registrados.
                     </td>

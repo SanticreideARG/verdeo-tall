@@ -3,48 +3,59 @@
 use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
 use App\Services\OllamaService;
+use App\Services\ClaudeService;
 
 new #[Layout('layouts.app', ['title' => 'Asistente IA'])] class extends Component {
 
-    public array  $messages = [];
-    public string $input    = '';
-    public bool   $loading  = false;
-    public bool   $available = true;
-    public string $model    = '';
+    public array  $messages       = [];
+    public string $input          = '';
+    public bool   $loading        = false;
+    public string $provider       = 'ollama'; // 'ollama' | 'claude'
+    public bool   $ollamaOk       = false;
+    public bool   $claudeOk       = false;
+    public string $model          = '';
 
-    public function mount(OllamaService $ollama): void
+    public function mount(OllamaService $ollama, ClaudeService $claude): void
     {
         if (! auth()->user()->isAdmin() && ! auth()->user()->isResponsableZona()) {
             $this->redirect(route('dashboard'), navigate: true);
             return;
         }
-        $this->available = $ollama->isAvailable();
-        $this->model     = $ollama->getModel();
+        $this->ollamaOk = $ollama->isAvailable();
+        $this->claudeOk = $claude->isAvailable();
+        $this->provider = $this->claudeOk ? 'claude' : 'ollama';
+        $this->model    = $this->provider === 'claude' ? $claude->getModel() : $ollama->getModel();
     }
 
-    public function send(OllamaService $ollama): void
+    public function switchProvider(string $p, OllamaService $ollama, ClaudeService $claude): void
     {
-        $text = trim($this->input);
+        if ($p === 'claude' && ! $this->claudeOk) return;
+        if ($p === 'ollama' && ! $this->ollamaOk) return;
+        $this->provider = $p;
+        $this->model    = $p === 'claude' ? $claude->getModel() : $ollama->getModel();
+        $this->messages = [];
+    }
+
+    public function send(OllamaService $ollama, ClaudeService $claude, string $text = ''): void
+    {
+        $text = trim($text ?: $this->input);
         if (! $text || $this->loading) return;
 
         $this->messages[] = ['role' => 'user', 'content' => $text];
         $this->input      = '';
         $this->loading    = true;
 
+        $service = $this->provider === 'claude' ? $claude : $ollama;
+
         try {
             $history = array_merge(
-                [['role' => 'system', 'content' =>
-                    'Sos un asistente interno de Verdeo, una empresa argentina de comida saludable. '
-                  . 'Respondé en español rioplatense, de forma concisa y útil. '
-                  . 'Podés ayudar con: redacción de mensajes para clientes, análisis de métricas, '
-                  . 'sugerencias de menú, respuestas a preguntas frecuentes y cualquier consulta interna.'
-                ]],
+                [['role' => 'system', 'content' => $service->buildSystemPrompt()]],
                 $this->messages
             );
-            $reply = $ollama->chat($history);
+            $reply = $service->chat($history);
             $this->messages[] = ['role' => 'assistant', 'content' => $reply ?: '_(sin respuesta)_'];
         } catch (\Throwable $e) {
-            $this->messages[] = ['role' => 'assistant', 'content' => 'Error al conectar con el modelo: ' . $e->getMessage()];
+            $this->messages[] = ['role' => 'assistant', 'content' => 'Error: ' . $e->getMessage()];
         } finally {
             $this->loading = false;
         }
@@ -75,22 +86,38 @@ new #[Layout('layouts.app', ['title' => 'Asistente IA'])] class extends Componen
             </div>
             <div>
                 <h2 class="font-condensed font-bold text-base" style="color: var(--vd-text);">Chat Interno</h2>
-                @if($available)
-                    <p class="text-xs" style="color: var(--vd-muted);">
-                        <span style="color: #4e9e5a;">●</span>
-                        {{ $model }} · listo
-                    </p>
-                @else
-                    <p class="text-xs" style="color: #fca5a5;">
-                        <span>●</span> Ollama no disponible
-                    </p>
-                @endif
+                <p class="text-xs" style="color: var(--vd-muted);">
+                    <span style="color: #4e9e5a;">●</span> {{ $model }}
+                </p>
             </div>
         </div>
-        @if(count($messages) > 0)
-        <button wire:click="clear" class="btn-secondary text-xs px-3 py-1.5"
-                style="color: var(--vd-muted);">Nueva conversación</button>
-        @endif
+
+        {{-- Provider toggle + clear --}}
+        <div class="flex items-center gap-3">
+            <div class="flex items-center rounded-xl overflow-hidden"
+                 style="border: 1px solid var(--vd-bdr-soft); background: var(--vd-input-bg);">
+                <button wire:click="switchProvider('ollama')"
+                        {{ ! $ollamaOk ? 'disabled' : '' }}
+                        class="px-3 py-1.5 text-xs font-condensed font-bold uppercase tracking-wide transition-all"
+                        style="{{ $provider === 'ollama'
+                            ? 'background: rgba(58,125,68,0.25); color: #4e9e5a;'
+                            : 'color: var(--vd-muted); ' . (! $ollamaOk ? 'opacity:0.4; cursor:not-allowed;' : '') }}">
+                    Ollama
+                </button>
+                <button wire:click="switchProvider('claude')"
+                        {{ ! $claudeOk ? 'disabled' : '' }}
+                        class="px-3 py-1.5 text-xs font-condensed font-bold uppercase tracking-wide transition-all"
+                        style="{{ $provider === 'claude'
+                            ? 'background: rgba(139,92,246,0.25); color: #a78bfa;'
+                            : 'color: var(--vd-muted); ' . (! $claudeOk ? 'opacity:0.4; cursor:not-allowed;' : '') }}">
+                    Claude
+                </button>
+            </div>
+            @if(count($messages) > 0)
+            <button wire:click="clear" class="btn-secondary text-xs px-3 py-1.5"
+                    style="color: var(--vd-muted);">Nueva conversación</button>
+            @endif
+        </div>
     </div>
 
     {{-- Messages --}}
@@ -167,41 +194,51 @@ new #[Layout('layouts.app', ['title' => 'Asistente IA'])] class extends Componen
                           d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
                 </svg>
             </div>
-            <div class="rounded-2xl px-4 py-3 flex items-center gap-1.5"
+            <div class="rounded-2xl px-4 py-3 flex flex-col gap-2"
                  style="background: var(--vd-surface-3, var(--vd-bg-2)); border: 1px solid var(--vd-bdr-soft); border-bottom-left-radius: 4px;">
-                <span class="w-2 h-2 rounded-full animate-bounce" style="background: #4e9e5a; animation-delay: 0ms;"></span>
-                <span class="w-2 h-2 rounded-full animate-bounce" style="background: #4e9e5a; animation-delay: 150ms;"></span>
-                <span class="w-2 h-2 rounded-full animate-bounce" style="background: #4e9e5a; animation-delay: 300ms;"></span>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full animate-bounce" style="background: #4e9e5a; animation-delay: 0ms;"></span>
+                    <span class="w-2 h-2 rounded-full animate-bounce" style="background: #4e9e5a; animation-delay: 150ms;"></span>
+                    <span class="w-2 h-2 rounded-full animate-bounce" style="background: #4e9e5a; animation-delay: 300ms;"></span>
+                </div>
+                @if(count($messages) <= 1)
+                <p class="text-xs" style="color: var(--vd-muted);">Primera respuesta: puede tardar hasta 2-3 min mientras carga el modelo.</p>
+                @endif
             </div>
         </div>
         @endif
     </div>
 
     {{-- Input --}}
+    @php $ready = ($provider === 'claude' ? $claudeOk : $ollamaOk); @endphp
     <div class="flex-shrink-0">
-        @if(! $available)
+        @if(! $ready)
         <div class="rounded-xl px-4 py-3 text-sm text-center mb-3"
              style="background: rgba(220,68,68,0.1); border: 1px solid rgba(220,68,68,0.3); color: #fca5a5;">
-            Ollama no está disponible. Verificá que el contenedor esté corriendo.
+            @if($provider === 'claude')
+                API key de Claude no configurada. Agregá <code>ANTHROPIC_API_KEY</code> en el <code>.env</code>.
+            @else
+                Ollama no está disponible. Verificá que el contenedor esté corriendo.
+            @endif
         </div>
         @endif
-        <form wire:submit="send" class="flex gap-3">
+        <form x-data @submit.prevent="$wire.send($refs.input.value); $refs.input.value = ''; $refs.input.style.height = 'auto';" class="flex gap-3">
             <div class="flex-1 relative">
-                <textarea wire:model="input"
+                <textarea x-ref="input"
                           rows="1"
-                          placeholder="{{ $available ? 'Escribí tu mensaje...' : 'Ollama no disponible' }}"
-                          {{ $available ? '' : 'disabled' }}
+                          placeholder="{{ $ready ? 'Escribí tu mensaje...' : 'No disponible' }}"
+                          {{ $ready ? '' : 'disabled' }}
                           class="w-full rounded-xl px-4 py-3 text-sm resize-none"
                           style="background: var(--vd-input-bg); border: 1px solid var(--vd-bdr-soft); color: var(--vd-text); outline: none; min-height: 48px; max-height: 160px;"
-                          @keydown.enter.prevent="if (!$event.shiftKey) { $wire.send(); }"
+                          @keydown.enter.prevent="if (!$event.shiftKey) { $wire.send($el.value); $el.value = ''; $el.style.height = 'auto'; }"
                           x-on:input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
                           onfocus="this.style.borderColor='rgba(78,158,90,0.5)'"
                           onblur="this.style.borderColor='var(--vd-bdr-soft)'"></textarea>
             </div>
             <button type="submit"
-                    {{ $loading || ! $available ? 'disabled' : '' }}
+                    {{ $loading || ! $ready ? 'disabled' : '' }}
                     class="flex-shrink-0 h-12 w-12 rounded-xl flex items-center justify-center transition-all"
-                    style="{{ $loading || ! $available
+                    style="{{ $loading || ! $ready
                         ? 'background: rgba(78,158,90,0.12); border: 1px solid rgba(78,158,90,0.15); cursor: not-allowed; color: var(--vd-muted-2);'
                         : 'background: linear-gradient(135deg, #3a7d44, #4e9e5a); border: 1px solid rgba(78,158,90,0.5); color: white; cursor: pointer;' }}">
                 @if($loading)

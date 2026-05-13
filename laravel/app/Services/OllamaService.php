@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
-use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 class OllamaService
 {
+    use BuildsSystemPrompt;
     private string $baseUrl;
     private string $model;
 
@@ -21,7 +21,7 @@ class OllamaService
      */
     public function generate(string $prompt, array $options = []): string
     {
-        $response = Http::timeout(120)->post("{$this->baseUrl}/api/generate", array_merge([
+        $response = Http::timeout(300)->post("{$this->baseUrl}/api/generate", array_merge([
             'model'  => $this->model,
             'prompt' => $prompt,
             'stream' => false,
@@ -35,7 +35,7 @@ class OllamaService
      */
     public function chat(array $messages, array $options = []): string
     {
-        $response = Http::timeout(120)->post("{$this->baseUrl}/api/chat", array_merge([
+        $response = Http::timeout(300)->post("{$this->baseUrl}/api/chat", array_merge([
             'model'    => $this->model,
             'messages' => $messages,
             'stream'   => false,
@@ -112,20 +112,30 @@ class OllamaService
      */
     public function suggestReply(string $customerMessage, string $context = ''): string
     {
-        $system = "Sos un asistente de Verdeo, una empresa de comida saludable. "
-                . "Respondé en español, de forma amable y concisa. "
-                . ($context ? "Contexto del cliente: {$context}" : '');
+        $system = $this->buildSystemPrompt();
+        if ($context) {
+            $system .= "\n\nContexto adicional del cliente: {$context}";
+        }
 
         return $this->chat([
-            ['role' => 'system',    'content' => $system],
-            ['role' => 'user',      'content' => $customerMessage],
+            ['role' => 'system', 'content' => $system],
+            ['role' => 'user',   'content' => $customerMessage],
         ]);
     }
 
     public function isAvailable(): bool
     {
         try {
-            return Http::timeout(3)->get("{$this->baseUrl}/api/tags")->successful();
+            if (! Http::timeout(3)->get("{$this->baseUrl}/api/tags")->successful()) {
+                return false;
+            }
+            // Keep model loaded in memory indefinitely
+            Http::timeout(5)->post("{$this->baseUrl}/api/generate", [
+                'model'      => $this->model,
+                'prompt'     => '',
+                'keep_alive' => -1,
+            ]);
+            return true;
         } catch (\Throwable) {
             return false;
         }
