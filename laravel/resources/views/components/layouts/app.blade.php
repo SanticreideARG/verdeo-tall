@@ -65,9 +65,11 @@
                 <div class="pt-5 mt-1" style="border-top: 1px solid var(--vd-bdr-soft);">
                     <p class="px-3 mb-2 font-condensed font-bold tracking-widest uppercase text-xs"
                        style="color: var(--vd-muted-2); letter-spacing: 1.6px;">Administración</p>
+                    @if(auth()->user()->isAdmin() || auth()->user()->isResponsableZona())
                     <x-nav-link href="{{ route('usuarios') }}" :active="request()->routeIs('usuarios*')">
                         <x-icon-users class="w-4 h-4 mr-3 flex-shrink-0" style="color: #4e9e5a;"/> Usuarios
                     </x-nav-link>
+                    @endif
                     <x-nav-link href="{{ route('ajustes') }}" :active="request()->routeIs('ajustes*')">
                         <x-icon-settings class="w-4 h-4 mr-3 flex-shrink-0" style="color: #4e9e5a;"/> Ajustes
                     </x-nav-link>
@@ -120,13 +122,16 @@
 
             {{-- User chip --}}
             <div class="px-3 py-4" style="border-top: 1px solid var(--vd-bdr-soft);">
-                <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl"
-                     style="background: var(--vd-input-bg); border: 1px solid var(--vd-bdr-soft);">
+                <a href="{{ route('mi-cuenta') }}" wire:navigate
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-150"
+                   style="background: var(--vd-input-bg); border: 1px solid var(--vd-bdr-soft);"
+                   onmouseover="this.style.borderColor='rgba(78,158,90,0.45)'; this.style.background='var(--vd-nav-hover)'"
+                   onmouseout="this.style.borderColor='var(--vd-bdr-soft)'; this.style.background='var(--vd-input-bg)'">
                     <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
                          style="background: linear-gradient(135deg, #3a7d44, #4e9e5a);">
                         {{ strtoupper(substr(auth()->user()->name ?? 'V', 0, 1)) }}
                     </div>
-                    <div class="min-w-0">
+                    <div class="min-w-0 flex-1">
                         <p class="text-sm font-semibold truncate" style="color: var(--vd-text);">
                             {{ auth()->user()->name ?? 'Verdeo' }}
                         </p>
@@ -134,7 +139,11 @@
                             {{ \App\Models\User::rolesLabels()[auth()->user()->role ?? ''] ?? 'Usuario' }}
                         </p>
                     </div>
-                </div>
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                         style="color: var(--vd-muted-2); flex-shrink: 0;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </a>
             </div>
         </div>
 

@@ -41,9 +41,14 @@ Route::middleware('auth')->group(function () {
     Volt::route('/estadisticas',       'estadisticas.index')     ->name('estadisticas');
     Volt::route('/productos',          'productos.index')        ->name('productos');
     Volt::route('/ordenes',            'ordenes.index')          ->name('ordenes');
-    Volt::route('/usuarios',          'usuarios.index')         ->name('usuarios');
-    Volt::route('/usuarios/crear',    'usuarios.crear')         ->name('usuarios.crear');
-    Volt::route('/ajustes',           'ajustes.index')          ->name('ajustes');
+    Volt::route('/usuarios',                    'usuarios.index')            ->name('usuarios');
+    Volt::route('/usuarios/crear',            'usuarios.crear')            ->name('usuarios.crear');
+    Volt::route('/usuarios/crear/cliente',    'usuarios.crear-cliente')    ->name('usuarios.crear-cliente');
+    Volt::route('/usuarios/crear/colaborador','usuarios.crear-colaborador')->name('usuarios.crear-colaborador');
+    Volt::route('/usuarios/{user}',           'usuarios.ver')              ->name('usuarios.ver');
+    Volt::route('/ajustes',                   'ajustes.index')             ->name('ajustes');
+    Volt::route('/mi-cuenta',         'mi-cuenta.index')        ->name('mi-cuenta');
+    Volt::route('/ai',                'ai.chat')                ->name('ai.chat');
 
     // ─── Marketing de Redes ───────────────────────────────────────────────────
     Volt::route('/marketing/email',     'marketing.email')     ->name('marketing.email');

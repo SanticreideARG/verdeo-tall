@@ -4,6 +4,7 @@ use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
 use Livewire\WithPagination;
 use App\Models\Orden;
+use App\Models\OrdenItem;
 use App\Models\Producto;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +46,13 @@ new #[Layout('layouts.app', ['title' => 'Órdenes'])] class extends Component {
 
     public function agregarItem(): void
     {
-        $this->items[] = ['producto_id' => '', 'cantidad' => 1, 'precio_unitario' => 0, 'subtotal' => 0];
+        $this->items[] = [
+            'producto_id'     => '',
+            'tamano'          => '250g',
+            'forma_pago'      => 'no_definido',
+            'precio_unitario' => 0,
+            'subtotal'        => 0,
+        ];
     }
 
     public function removerItem(int $idx): void
@@ -59,22 +66,47 @@ new #[Layout('layouts.app', ['title' => 'Órdenes'])] class extends Component {
         [$idx, $field] = array_pad(explode('.', $key, 2), 2, '');
         $idx = (int) $idx;
 
-        if (in_array($field, ['producto_id', 'cantidad', 'precio_unitario'])) {
-            $cant   = (float) ($this->items[$idx]['cantidad'] ?? 0);
-            $precio = (float) ($this->items[$idx]['precio_unitario'] ?? 0);
-            $this->items[$idx]['subtotal'] = round($cant * $precio, 2);
+        if (in_array($field, ['producto_id', 'tamano'])) {
+            $this->recalcularPrecio($idx);
+        }
+    }
+
+    private function recalcularPrecio(int $idx): void
+    {
+        $productoId = $this->items[$idx]['producto_id'] ?? '';
+        $tamano     = $this->items[$idx]['tamano'] ?? '250g';
+
+        if ($productoId) {
+            $producto = Producto::find($productoId);
+            if ($producto) {
+                $precio = $tamano === '400g'
+                    ? (float) $producto->precio_400g
+                    : (float) $producto->precio_250g;
+                $this->items[$idx]['precio_unitario'] = $precio;
+                $this->items[$idx]['subtotal']        = $precio;
+            }
+        } else {
+            $this->items[$idx]['precio_unitario'] = 0;
+            $this->items[$idx]['subtotal']        = 0;
         }
     }
 
     public function guardarOrden(): void
     {
         $this->validate([
-            'clienteId' => 'required|exists:users,id',
-            'zonaNueva' => 'required',
-            'items'     => 'required|array|min:1',
+            'clienteId'               => 'required|exists:users,id',
+            'zonaNueva'               => 'required',
+            'items'                   => 'required|array|min:1',
             'items.*.producto_id'     => 'required|exists:productos,id',
-            'items.*.cantidad'        => 'required|numeric|min:0.001',
-            'items.*.precio_unitario' => 'required|numeric|min:0',
+            'items.*.tamano'          => 'required|in:250g,400g',
+            'items.*.forma_pago'      => 'required|in:no_definido,en_destino,transferencia',
+        ], [
+            'clienteId.required'          => 'Seleccioná un cliente.',
+            'zonaNueva.required'          => 'Seleccioná una zona.',
+            'items.required'              => 'Agregá al menos un menú.',
+            'items.*.producto_id.required' => 'Seleccioná un menú.',
+            'items.*.tamano.required'      => 'Seleccioná un tamaño.',
+            'items.*.forma_pago.required'  => 'Seleccioná la forma de pago.',
         ]);
 
         $orden = DB::transaction(function () {
@@ -88,13 +120,14 @@ new #[Layout('layouts.app', ['title' => 'Órdenes'])] class extends Component {
             ]);
 
             foreach ($this->items as $item) {
-                $cant   = (float) $item['cantidad'];
                 $precio = (float) $item['precio_unitario'];
                 $orden->items()->create([
                     'producto_id'     => $item['producto_id'],
-                    'cantidad'        => $cant,
+                    'tamano'          => $item['tamano'],
+                    'forma_pago'      => $item['forma_pago'],
+                    'cantidad'        => 1,
                     'precio_unitario' => $precio,
-                    'subtotal'        => round($cant * $precio, 2),
+                    'subtotal'        => $precio,
                 ]);
             }
 
@@ -166,19 +199,20 @@ new #[Layout('layouts.app', ['title' => 'Órdenes'])] class extends Component {
 
     {{-- New order form --}}
     <div x-show="showForm" x-collapse class="card mb-6" style="display:none;">
-        <h3 class="font-semibold mb-4" style="color: var(--vd-text);">Nueva orden</h3>
-        <form wire:submit="guardarOrden" class="space-y-4">
+        <h3 class="font-condensed font-bold text-lg mb-5" style="color: var(--vd-text);">Nueva orden</h3>
+        <form wire:submit="guardarOrden" class="space-y-5">
 
+            {{-- Cliente + Zona --}}
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="md:col-span-2">
                     <label class="label">Cliente</label>
                     <select wire:model.live="clienteId" class="input">
                         <option value="0">Seleccionar cliente…</option>
                         @foreach($clientes as $c)
-                            <option value="{{ $c->id }}">{{ $c->name }}@if($c->whatsapp) · {{ $c->whatsapp }}@endif</option>
+                            <option value="{{ $c->id }}">{{ $c->nombreCompleto() }}@if($c->whatsapp) · {{ $c->whatsapp }}@endif</option>
                         @endforeach
                     </select>
-                    @error('clienteId') <p class="text-xs mt-1" style="color: #fca5a5;">Seleccioná un cliente.</p> @enderror
+                    @error('clienteId') <p class="text-xs mt-1" style="color: #fca5a5;">{{ $message }}</p> @enderror
                     @if($clientes->isEmpty())
                         <p class="text-xs mt-1" style="color: #f59e0b;">
                             No hay clientes registrados. Creá uno en <a href="{{ route('usuarios') }}" class="underline">Usuarios</a>.
@@ -194,10 +228,11 @@ new #[Layout('layouts.app', ['title' => 'Órdenes'])] class extends Component {
                         <option value="cordoba">Córdoba</option>
                         <option value="mendoza">Mendoza</option>
                     </select>
-                    @error('zonaNueva') <p class="text-xs mt-1" style="color: #fca5a5;">Seleccioná una zona.</p> @enderror
+                    @error('zonaNueva') <p class="text-xs mt-1" style="color: #fca5a5;">{{ $message }}</p> @enderror
                 </div>
             </div>
 
+            {{-- Notas --}}
             <div>
                 <label class="label">Notas <span class="font-normal" style="color: var(--vd-muted-2);">(opcional)</span></label>
                 <textarea wire:model="notas" class="input" rows="2"
@@ -206,62 +241,82 @@ new #[Layout('layouts.app', ['title' => 'Órdenes'])] class extends Component {
 
             {{-- Items --}}
             <div>
-                <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center justify-between mb-3">
                     <label class="label mb-0">Menús</label>
                     <button type="button" wire:click="agregarItem"
                             class="text-sm font-medium transition-colors"
                             style="color: var(--vd-green-lt);">+ Agregar menú</button>
                 </div>
-                @error('items') <p class="text-xs mb-2" style="color: #fca5a5;">Agregá al menos un menú.</p> @enderror
+                @error('items') <p class="text-xs mb-2" style="color: #fca5a5;">{{ $message }}</p> @enderror
 
                 @if(count($items))
                 <div class="rounded-xl overflow-hidden" style="border: 1px solid var(--vd-bdr);">
                     <table class="w-full text-sm">
                         <thead style="background: var(--vd-bg-2);">
                             <tr>
-                                <th class="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider"
+                                <th class="text-left px-4 py-2 text-xs font-condensed font-bold uppercase tracking-wide"
                                     style="color: var(--vd-muted-2);">Menú</th>
-                                <th class="text-right px-4 py-2 w-28 text-xs font-semibold uppercase tracking-wider"
-                                    style="color: var(--vd-muted-2);">Semanas</th>
-                                <th class="text-right px-4 py-2 w-32 text-xs font-semibold uppercase tracking-wider"
-                                    style="color: var(--vd-muted-2);">Precio unit.</th>
-                                <th class="text-right px-4 py-2 w-32 text-xs font-semibold uppercase tracking-wider"
-                                    style="color: var(--vd-muted-2);">Subtotal</th>
+                                <th class="text-left px-4 py-2 w-36 text-xs font-condensed font-bold uppercase tracking-wide"
+                                    style="color: var(--vd-muted-2);">Tamaño</th>
+                                <th class="text-left px-4 py-2 w-44 text-xs font-condensed font-bold uppercase tracking-wide"
+                                    style="color: var(--vd-muted-2);">Forma de pago</th>
+                                <th class="text-right px-4 py-2 w-32 text-xs font-condensed font-bold uppercase tracking-wide"
+                                    style="color: var(--vd-muted-2);">Precio</th>
                                 <th class="px-4 py-2 w-10"></th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($items as $idx => $item)
                             <tr style="border-top: 1px solid var(--vd-bdr-soft);">
+
+                                {{-- Menú --}}
                                 <td class="px-4 py-2">
-                                    <select wire:model.change="items.{{ $idx }}.producto_id" class="input">
+                                    <select wire:model.live="items.{{ $idx }}.producto_id" class="input">
                                         <option value="">Seleccionar…</option>
                                         @foreach($productos as $prod)
                                             <option value="{{ $prod->id }}">{{ $prod->nombre }}</option>
                                         @endforeach
                                     </select>
                                     @error("items.{$idx}.producto_id")
-                                        <p class="text-xs mt-1" style="color: #fca5a5;">Requerido.</p>
+                                        <p class="text-xs mt-1" style="color: #fca5a5;">{{ $message }}</p>
                                     @enderror
                                 </td>
+
+                                {{-- Tamaño --}}
                                 <td class="px-4 py-2">
-                                    <input wire:model.blur="items.{{ $idx }}.cantidad"
-                                           type="number" step="0.001" min="0.001"
-                                           class="input text-right">
+                                    <select wire:model.live="items.{{ $idx }}.tamano" class="input">
+                                        @foreach(\App\Models\OrdenItem::TAMANOS as $val => $label)
+                                            <option value="{{ $val }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error("items.{$idx}.tamano")
+                                        <p class="text-xs mt-1" style="color: #fca5a5;">{{ $message }}</p>
+                                    @enderror
                                 </td>
+
+                                {{-- Forma de pago --}}
                                 <td class="px-4 py-2">
-                                    <div class="relative">
-                                        <span class="absolute left-2 top-1/2 -translate-y-1/2 text-xs"
-                                              style="color: var(--vd-muted-2);">$</span>
-                                        <input wire:model.blur="items.{{ $idx }}.precio_unitario"
-                                               type="number" step="0.01" min="0"
-                                               class="input text-right pl-5">
-                                    </div>
+                                    <select wire:model="items.{{ $idx }}.forma_pago" class="input">
+                                        @foreach(\App\Models\OrdenItem::FORMAS_PAGO as $val => $label)
+                                            <option value="{{ $val }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error("items.{$idx}.forma_pago")
+                                        <p class="text-xs mt-1" style="color: #fca5a5;">{{ $message }}</p>
+                                    @enderror
                                 </td>
+
+                                {{-- Precio (auto) --}}
                                 <td class="px-4 py-2 text-right font-mono font-semibold"
                                     style="color: var(--vd-text);">
-                                    ${{ number_format($item['subtotal'] ?? 0, 2, ',', '.') }}
+                                    @if(($item['precio_unitario'] ?? 0) > 0)
+                                        ${{ number_format($item['precio_unitario'], 2, ',', '.') }}
+                                    @else
+                                        <span style="color: var(--vd-muted-2);">—</span>
+                                    @endif
                                 </td>
+
+                                {{-- Quitar --}}
                                 <td class="px-4 py-2 text-center">
                                     <button type="button" wire:click="removerItem({{ $idx }})"
                                             class="transition-colors" style="color: #fca5a5;">✕</button>
@@ -304,17 +359,19 @@ new #[Layout('layouts.app', ['title' => 'Órdenes'])] class extends Component {
         <table class="w-full text-sm">
             <thead style="background: var(--vd-bg-2); border-bottom: 1px solid var(--vd-bdr);">
                 <tr>
-                    <th class="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wider"
+                    <th class="text-left px-6 py-3 text-xs font-condensed font-bold uppercase tracking-wide"
                         style="color: var(--vd-muted-2);">Nº</th>
-                    <th class="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wider"
+                    <th class="text-left px-6 py-3 text-xs font-condensed font-bold uppercase tracking-wide"
                         style="color: var(--vd-muted-2);">Cliente</th>
-                    <th class="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wider"
+                    <th class="text-left px-6 py-3 text-xs font-condensed font-bold uppercase tracking-wide"
                         style="color: var(--vd-muted-2);">Zona</th>
-                    <th class="text-right px-6 py-3 text-xs font-semibold uppercase tracking-wider"
+                    <th class="text-left px-6 py-3 text-xs font-condensed font-bold uppercase tracking-wide"
+                        style="color: var(--vd-muted-2);">Detalle</th>
+                    <th class="text-right px-6 py-3 text-xs font-condensed font-bold uppercase tracking-wide"
                         style="color: var(--vd-muted-2);">Total</th>
-                    <th class="text-center px-6 py-3 text-xs font-semibold uppercase tracking-wider"
+                    <th class="text-center px-6 py-3 text-xs font-condensed font-bold uppercase tracking-wide"
                         style="color: var(--vd-muted-2);">Estado</th>
-                    <th class="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wider"
+                    <th class="text-left px-6 py-3 text-xs font-condensed font-bold uppercase tracking-wide"
                         style="color: var(--vd-muted-2);">Fecha</th>
                 </tr>
             </thead>
@@ -324,12 +381,9 @@ new #[Layout('layouts.app', ['title' => 'Órdenes'])] class extends Component {
                     <td class="px-6 py-4 font-mono text-xs whitespace-nowrap"
                         style="color: var(--vd-muted);">{{ $o->numero }}</td>
                     <td class="px-6 py-4">
-                        <p class="font-medium" style="color: var(--vd-text);">{{ $o->cliente->name }}</p>
+                        <p class="font-semibold" style="color: var(--vd-text);">{{ $o->cliente->nombreCompleto() }}</p>
                         @if($o->cliente->whatsapp)
                             <p class="text-xs" style="color: var(--vd-muted-2);">{{ $o->cliente->whatsapp }}</p>
-                        @endif
-                        @if($o->cliente->direccion)
-                            <p class="text-xs truncate max-w-[180px]" style="color: var(--vd-muted-2);">{{ $o->cliente->direccion }}</p>
                         @endif
                     </td>
                     <td class="px-6 py-4 text-xs" style="color: var(--vd-muted);">
@@ -341,12 +395,20 @@ new #[Layout('layouts.app', ['title' => 'Órdenes'])] class extends Component {
                             default     => $o->zona,
                         } }}
                     </td>
+                    <td class="px-6 py-4">
+                        @foreach($o->items->take(2) as $it)
+                            <p class="text-xs leading-5" style="color: var(--vd-text-soft);">
+                                {{ $it->producto?->nombre ?? '—' }}
+                                <span class="font-mono" style="color: var(--vd-muted-2);">· {{ $it->tamano }}</span>
+                            </p>
+                        @endforeach
+                        @if($o->items->count() > 2)
+                            <p class="text-xs" style="color: var(--vd-muted-2);">+{{ $o->items->count() - 2 }} más</p>
+                        @endif
+                    </td>
                     <td class="px-6 py-4 text-right font-mono font-semibold whitespace-nowrap"
                         style="color: var(--vd-text);">
                         ${{ number_format($o->total, 2, ',', '.') }}
-                        <span class="block text-xs font-sans" style="color: var(--vd-muted-2);">
-                            {{ $o->items->count() }} ítems
-                        </span>
                     </td>
                     <td class="px-6 py-4 text-center">
                         @if($this->puedeModificar() && !in_array($o->estado, ['entregada', 'cancelada']))
@@ -368,7 +430,7 @@ new #[Layout('layouts.app', ['title' => 'Órdenes'])] class extends Component {
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="6" class="px-6 py-12 text-center" style="color: var(--vd-muted-2);">
+                    <td colspan="7" class="px-6 py-12 text-center" style="color: var(--vd-muted-2);">
                         No hay órdenes que coincidan con los filtros.
                     </td>
                 </tr>

@@ -9,9 +9,13 @@ class Producto extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['nombre', 'descripcion', 'tipo', 'activo', 'orden'];
+    protected $fillable = ['nombre', 'descripcion', 'tipo', 'activo', 'orden', 'precio_250g', 'precio_400g'];
 
-    protected $casts = ['activo' => 'boolean'];
+    protected $casts = [
+        'activo'     => 'boolean',
+        'precio_250g' => 'decimal:2',
+        'precio_400g' => 'decimal:2',
+    ];
 
     public static function tipos(): array
     {

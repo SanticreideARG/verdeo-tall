@@ -7,6 +7,11 @@ use App\Models\Plato;
 
 new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
 
+    public string $tab = 'menus';
+
+    // Prices tab
+    public array $precios = [];
+
     // Edit menu description
     public ?int   $editMenuId          = null;
     public string $editMenuDescripcion = '';
@@ -26,11 +31,49 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
     // Delete dish
     public ?int $deletingPlatoId = null;
 
+    public function mount(): void
+    {
+        $this->cargarPrecios();
+    }
+
+    private function cargarPrecios(): void
+    {
+        foreach (Producto::orderBy('orden')->get() as $p) {
+            $this->precios[$p->id] = [
+                'p250' => $p->precio_250g !== null ? (string) $p->precio_250g : '',
+                'p400' => $p->precio_400g !== null ? (string) $p->precio_400g : '',
+            ];
+        }
+    }
+
     public function with(): array
     {
         return [
             'menus' => Producto::orderBy('orden')->with(['platos' => fn($q) => $q->orderBy('orden')])->get(),
         ];
+    }
+
+    /* ── Prices ───────────────────────────────────────────── */
+
+    public function guardarPrecios(): void
+    {
+        $rules  = [];
+        $msgs   = [];
+        foreach ($this->precios as $id => $vals) {
+            $rules["precios.{$id}.p250"] = 'nullable|numeric|min:0';
+            $rules["precios.{$id}.p400"] = 'nullable|numeric|min:0';
+            $msgs["precios.{$id}.p250.numeric"] = 'Precio inválido.';
+            $msgs["precios.{$id}.p400.numeric"] = 'Precio inválido.';
+        }
+        $this->validate($rules, $msgs);
+
+        foreach ($this->precios as $id => $vals) {
+            Producto::where('id', $id)->update([
+                'precio_250g' => $vals['p250'] !== '' ? (float) $vals['p250'] : null,
+                'precio_400g' => $vals['p400'] !== '' ? (float) $vals['p400'] : null,
+            ]);
+        }
+        session()->flash('success', 'Precios actualizados.');
     }
 
     /* ── Menu description ─────────────────────────────────── */
@@ -173,12 +216,30 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
         </div>
     @endif
 
-    {{-- Header --}}
-    <div class="flex items-end justify-between mb-8">
+    {{-- Header + Tabs --}}
+    <div class="flex items-end justify-between mb-6">
         <div>
             <h2 class="font-condensed font-bold text-2xl" style="color: var(--vd-text); letter-spacing: 0.5px;">Menús</h2>
-            <p class="text-sm mt-1" style="color: var(--vd-muted);">Administrá los platos de cada menú semanal.</p>
+            <p class="text-sm mt-1" style="color: var(--vd-muted);">Administrá los platos y precios de cada menú.</p>
         </div>
+    </div>
+
+    {{-- Tab nav --}}
+    <div class="flex gap-1 mb-6 p-1 rounded-xl w-fit" style="background: var(--vd-surface-2); border: 1px solid var(--vd-bdr-soft);">
+        <button wire:click="$set('tab', 'menus')"
+                class="px-5 py-2 text-sm font-condensed font-bold rounded-lg transition-colors duration-150"
+                style="{{ $tab === 'menus'
+                    ? 'background: var(--vd-green-dk); color: #fff;'
+                    : 'color: var(--vd-muted);' }}">
+            Menús
+        </button>
+        <button wire:click="$set('tab', 'precios')"
+                class="px-5 py-2 text-sm font-condensed font-bold rounded-lg transition-colors duration-150"
+                style="{{ $tab === 'precios'
+                    ? 'background: var(--vd-green-dk); color: #fff;'
+                    : 'color: var(--vd-muted);' }}">
+            Precios
+        </button>
     </div>
 
     {{-- Delete dish modal --}}
@@ -227,7 +288,8 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
     </div>
     @endif
 
-    {{-- Menu cards --}}
+    {{-- ═══ TAB: MENÚS ════════════════════════════════════════ --}}
+    @if($tab === 'menus')
     <div class="flex flex-col gap-5">
 
     @foreach($menus as $menu)
@@ -263,7 +325,6 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
             </div>
 
             <div class="flex items-center gap-2">
-                {{-- Edit description button --}}
                 <button @click.stop="$wire.startEditMenu({{ $menu->id }})"
                         class="btn-secondary text-xs px-3 py-1.5"
                         title="Editar descripción">
@@ -273,7 +334,6 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
                     </svg>
                     Descripción
                 </button>
-                {{-- Accordion toggle --}}
                 <svg class="w-4 h-4 transition-transform duration-200" :class="open ? 'rotate-180' : ''"
                      fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
                      style="color: var(--vd-muted);">
@@ -299,7 +359,6 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
         <div x-show="open" x-collapse>
             <div class="px-6 py-5">
 
-                {{-- Description --}}
                 @if($menu->descripcion)
                 <p class="text-sm mb-5 italic" style="color: var(--vd-muted); border-left: 3px solid {{ $colorAccent }}; padding-left: 12px;">
                     {{ $menu->descripcion }}
@@ -307,7 +366,6 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
                 @endif
 
                 @if($isIntuitivo)
-                {{-- Intuitivo special content --}}
                 <div class="rounded-xl p-4" style="background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.2);">
                     <p class="text-sm font-semibold mb-1" style="color: var(--vd-text);">Menú de selección libre</p>
                     <p class="text-xs" style="color: var(--vd-muted);">
@@ -318,7 +376,6 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
                 </div>
 
                 @else
-                {{-- Dish list --}}
                 <div class="flex flex-col gap-1">
                     @foreach($menu->platos as $plato)
                     <div class="flex items-center gap-3 px-3 py-2 rounded-xl group transition-colors"
@@ -327,7 +384,6 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
                          onmouseout="this.style.borderColor='transparent'; this.style.background=''">
 
                         @if($editPlatoId === $plato->id)
-                        {{-- Inline edit --}}
                         <div class="flex-1 flex items-center gap-2">
                             <input wire:model="editPlatoNombre" type="text"
                                    class="input py-1.5 text-sm flex-1"
@@ -339,15 +395,12 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
                         @error('editPlatoNombre') <p class="text-xs" style="color:#fca5a5;">{{ $message }}</p> @enderror
 
                         @else
-                        {{-- Dish number --}}
                         <span class="font-condensed font-bold text-sm w-5 text-center flex-shrink-0"
                               style="color: {{ $colorAccent }}; filter: brightness(1.6);">{{ $loop->iteration }}</span>
 
-                        {{-- Dish name --}}
                         <span class="flex-1 text-sm {{ $plato->activo ? '' : 'opacity-40 line-through' }}"
                               style="color: var(--vd-text);">{{ $plato->nombre }}</span>
 
-                        {{-- Actions (visible on hover) --}}
                         <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button wire:click="startEditPlato({{ $plato->id }})"
                                     class="btn-secondary text-xs px-2.5 py-1" title="Editar">
@@ -386,7 +439,6 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
                     </div>
                     @endforeach
 
-                    {{-- Empty state --}}
                     @if($menu->platos->isEmpty())
                     <p class="text-xs text-center py-4" style="color: var(--vd-muted-2);">
                         Sin platos. Agregá el primero con el botón de abajo.
@@ -394,7 +446,6 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
                     @endif
                 </div>
 
-                {{-- Add dish form --}}
                 @if($addingToMenuId === $menu->id)
                 <div class="mt-3 flex items-center gap-2">
                     <input wire:model="nuevoPlatoNombre" type="text"
@@ -409,7 +460,6 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
                 @error('nuevoPlatoNombre') <p class="text-xs mt-1" style="color:#fca5a5;">{{ $message }}</p> @enderror
                 @endif
 
-                {{-- Action bar --}}
                 <div class="flex items-center gap-2 mt-4 pt-4" style="border-top: 1px solid {{ $colorAccent }};">
                     <button wire:click="startAddPlato({{ $menu->id }})" class="btn-secondary text-xs px-3 py-1.5">
                         + Agregar plato
@@ -431,5 +481,78 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
     @endforeach
 
     </div>
+    @endif {{-- /tab menus --}}
+
+    {{-- ═══ TAB: PRECIOS ══════════════════════════════════════ --}}
+    @if($tab === 'precios')
+    <div class="card p-0 overflow-hidden">
+
+        <div class="px-6 py-4" style="border-bottom: 1px solid var(--vd-bdr-soft);">
+            <h3 class="font-condensed font-bold" style="color: var(--vd-text);">Tarifas por menú</h3>
+            <p class="text-xs mt-1" style="color: var(--vd-muted);">
+                Los precios se aplican automáticamente al crear nuevas órdenes según el tamaño seleccionado.
+            </p>
+        </div>
+
+        <table class="w-full text-sm">
+            <thead style="background: var(--vd-bg-2);">
+                <tr>
+                    <th class="text-left px-6 py-3 font-condensed text-xs uppercase tracking-wide"
+                        style="color: var(--vd-muted-2);">Menú</th>
+                    <th class="text-right px-6 py-3 font-condensed text-xs uppercase tracking-wide w-44"
+                        style="color: var(--vd-muted-2);">Precio 250g</th>
+                    <th class="text-right px-6 py-3 font-condensed text-xs uppercase tracking-wide w-44"
+                        style="color: var(--vd-muted-2);">Precio 400g</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($menus as $menu)
+                @php
+                    $badgeClass = $menu->tipoBadge();
+                @endphp
+                <tr style="border-top: 1px solid var(--vd-bdr-soft);">
+                    <td class="px-6 py-4">
+                        <span class="{{ $badgeClass }} text-xs">{{ $menu->tipoLabel() }}</span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="relative flex items-center justify-end">
+                            <span class="absolute left-0 pl-3 text-sm pointer-events-none"
+                                  style="color: var(--vd-muted-2);">$</span>
+                            <input type="number" step="0.01" min="0"
+                                   wire:model="precios.{{ $menu->id }}.p250"
+                                   class="input text-right pl-6 w-36"
+                                   placeholder="—">
+                        </div>
+                        @error("precios.{$menu->id}.p250")
+                            <p class="text-xs mt-1 text-right" style="color:#fca5a5;">{{ $message }}</p>
+                        @enderror
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="relative flex items-center justify-end">
+                            <span class="absolute left-0 pl-3 text-sm pointer-events-none"
+                                  style="color: var(--vd-muted-2);">$</span>
+                            <input type="number" step="0.01" min="0"
+                                   wire:model="precios.{{ $menu->id }}.p400"
+                                   class="input text-right pl-6 w-36"
+                                   placeholder="—">
+                        </div>
+                        @error("precios.{$menu->id}.p400")
+                            <p class="text-xs mt-1 text-right" style="color:#fca5a5;">{{ $message }}</p>
+                        @enderror
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+
+        <div class="px-6 py-4 flex justify-end" style="border-top: 1px solid var(--vd-bdr-soft);">
+            <button wire:click="guardarPrecios" class="btn-primary px-8"
+                    wire:loading.attr="disabled" wire:target="guardarPrecios">
+                <span wire:loading.remove wire:target="guardarPrecios">Guardar precios</span>
+                <span wire:loading wire:target="guardarPrecios">Guardando…</span>
+            </button>
+        </div>
+    </div>
+    @endif {{-- /tab precios --}}
 
 </div>
