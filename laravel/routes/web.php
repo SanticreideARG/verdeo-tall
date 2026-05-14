@@ -62,6 +62,7 @@ Route::get('/ir/{enlace}', function (\App\Models\Enlace $enlace) {
     Volt::route('/mi-cuenta',         'mi-cuenta.index')        ->name('mi-cuenta');
     Volt::route('/chat',              'chat.index')             ->name('chat');
     Volt::route('/ai',                'ai.chat')                ->name('ai.chat');
+    Volt::route('/sistema',           'sistema.index')           ->name('sistema');
 
     // ─── Marketing de Redes ───────────────────────────────────────────────────
     Volt::route('/marketing/email',     'marketing.email')     ->name('marketing.email');

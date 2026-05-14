@@ -60,15 +60,11 @@ new #[Layout('layouts.app', ['title' => 'Chat interno'])] class extends Componen
                 $ultimo   = $ultimosMensajes->get($u->id);
                 $noLeidos = $noLeidosPorContacto->get($u->id, 0);
 
-                $iniciales = strtoupper(
-                    substr($u->name, 0, 1) .
-                    substr($u->apellido ?? $u->name, 1, 1)
-                );
-
                 return [
                     'id'         => $u->id,
                     'nombre'     => $u->nombreCompleto(),
-                    'iniciales'  => $iniciales,
+                    'iniciales'  => $u->iniciales(),
+                    'fotoUrl'    => $u->fotoUrl(),
                     'rol'        => $u->rolLabel(),
                     'noLeidos'   => (int) $noLeidos,
                     'ultimo'     => $ultimo
@@ -95,8 +91,10 @@ new #[Layout('layouts.app', ['title' => 'Chat interno'])] class extends Componen
             : null;
 
         $totalNoLeidos = $noLeidosPorContacto->sum();
+        $meIniciales   = auth()->user()->iniciales();
+        $meFotoUrl     = auth()->user()->fotoUrl();
 
-        return compact('contactos', 'contactoActual', 'totalNoLeidos');
+        return compact('contactos', 'contactoActual', 'totalNoLeidos', 'meIniciales', 'meFotoUrl');
     }
 
     // ── Contact selection ─────────────────────────────────────────────────────
@@ -280,12 +278,20 @@ new #[Layout('layouts.app', ['title' => 'Chat interno'])] class extends Componen
                     onmouseout="{{ $contactoId !== $c['id'] ? "this.style.background=''" : '' }}">
 
                 {{-- Avatar --}}
-                <div class="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center font-condensed font-bold text-sm select-none"
-                     style="background: linear-gradient(135deg, #3a7d44, #4e9e5a); color: #fff; position: relative;">
-                    {{ $c['iniciales'] }}
+                <div class="flex-shrink-0 relative" style="width:40px;height:40px;">
+                    @if($c['fotoUrl'])
+                    <img src="{{ $c['fotoUrl'] }}" alt="{{ $c['iniciales'] }}"
+                         class="rounded-full object-cover block"
+                         style="width:40px;height:40px;border:1px solid rgba(78,158,90,0.3);">
+                    @else
+                    <div class="rounded-full flex items-center justify-center font-condensed font-bold text-sm select-none"
+                         style="width:40px;height:40px;background:linear-gradient(135deg,#3a7d44,#4e9e5a);color:#fff;">
+                        {{ $c['iniciales'] }}
+                    </div>
+                    @endif
                     @if($c['noLeidos'] > 0)
                     <span class="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-xs font-bold flex items-center justify-center"
-                          style="background: #c8a030; color: #fff; font-size: 9px; line-height: 1;">{{ $c['noLeidos'] }}</span>
+                          style="background:#c8a030;color:#fff;font-size:9px;line-height:1;">{{ $c['noLeidos'] }}</span>
                     @endif
                 </div>
 
@@ -317,10 +323,16 @@ new #[Layout('layouts.app', ['title' => 'Chat interno'])] class extends Componen
         {{-- Header --}}
         <div class="px-5 py-3 flex items-center gap-3 flex-shrink-0"
              style="border-bottom: 1px solid var(--vd-bdr-soft); background: rgba(255,255,255,0.02);">
+            @if($contactoActual['fotoUrl'])
+            <img src="{{ $contactoActual['fotoUrl'] }}" alt="{{ $contactoActual['iniciales'] }}"
+                 class="w-9 h-9 rounded-full flex-shrink-0 object-cover"
+                 style="border: 1px solid rgba(78,158,90,0.3);">
+            @else
             <div class="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center font-condensed font-bold text-sm select-none"
                  style="background: linear-gradient(135deg, #3a7d44, #4e9e5a); color: #fff;">
                 {{ $contactoActual['iniciales'] }}
             </div>
+            @endif
             <div>
                 <div class="font-semibold text-sm leading-tight" style="color: var(--vd-text);">{{ $contactoActual['nombre'] }}</div>
                 <div class="text-xs" style="color: var(--vd-muted);">{{ $contactoActual['rol'] }}</div>
@@ -354,8 +366,28 @@ new #[Layout('layouts.app', ['title' => 'Chat interno'])] class extends Componen
             @endif
 
             {{-- Message row --}}
-            <div class="flex {{ $msg['from_me'] ? 'justify-end' : 'justify-start' }} mb-1.5" wire:key="msg-{{ $msg['id'] }}">
+            <div class="flex {{ $msg['from_me'] ? 'justify-end' : 'justify-start' }} items-end gap-2 mb-1.5" wire:key="msg-{{ $msg['id'] }}">
+
+                {{-- Avatar izq (solo mensajes entrantes) --}}
+                @if(! $msg['from_me'])
+                @if($contactoActual['fotoUrl'])
+                <img src="{{ $contactoActual['fotoUrl'] }}" alt="{{ $contactoActual['iniciales'] }}"
+                     class="w-6 h-6 rounded-full flex-shrink-0 object-cover self-end"
+                     style="border: 1px solid rgba(78,158,90,0.25);">
+                @else
+                <div class="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center font-condensed font-bold self-end"
+                     style="font-size: 9px; background: linear-gradient(135deg,#3a7d44,#4e9e5a); color:#fff; flex-shrink:0;">
+                    {{ $contactoActual['iniciales'] }}
+                </div>
+                @endif
+                @endif
+
                 <div style="max-width: min(75%, 440px);">
+
+                {{-- Avatar der (solo mensajes propios) --}}
+                @if($msg['from_me'])
+                {{-- placeholder vacío para alinear --}}
+                @endif
 
                 @if($msg['tipo'] === 'texto')
                 {{-- ── Text bubble ── --}}
@@ -449,6 +481,21 @@ new #[Layout('layouts.app', ['title' => 'Chat interno'])] class extends Componen
                 @endif
 
                 </div>
+
+                {{-- Avatar der (mensajes propios) --}}
+                @if($msg['from_me'])
+                @if($meFotoUrl)
+                <img src="{{ $meFotoUrl }}" alt="{{ $meIniciales }}"
+                     class="w-6 h-6 rounded-full flex-shrink-0 object-cover self-end"
+                     style="border: 1px solid rgba(78,158,90,0.25);">
+                @else
+                <div class="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center font-condensed font-bold self-end"
+                     style="font-size: 9px; background: linear-gradient(135deg,#3a7d44,#4e9e5a); color:#fff;">
+                    {{ $meIniciales }}
+                </div>
+                @endif
+                @endif
+
             </div>
 
             @empty

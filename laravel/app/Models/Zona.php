@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
@@ -9,6 +10,7 @@ use Illuminate\Support\Str;
 
 class Zona extends Model
 {
+    use LogsActivity;
     protected $fillable = [
         'slug', 'nombre', 'alcance', 'caracteristica',
         'responsable_id', 'precio_400g', 'precio_250g',

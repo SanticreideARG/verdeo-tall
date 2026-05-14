@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 class Orden extends Model
 {
+    use LogsActivity;
+
+    protected array $logCampos = ['estado', 'zona', 'notas', 'total'];
     protected $table = 'ordenes';
 
     protected $fillable = ['numero', 'user_id', 'estado', 'zona', 'notas', 'total'];

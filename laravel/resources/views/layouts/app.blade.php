@@ -187,6 +187,19 @@
                     </x-nav-link>
                 </div>
                 @endif
+
+                @if(auth()->user()->isAdmin())
+                <div class="pt-5 mt-1" style="border-top: 1px solid var(--vd-bdr-soft);">
+                    <p class="px-3 mb-2 font-condensed font-bold tracking-widest uppercase text-xs"
+                       style="color: var(--vd-muted-2); letter-spacing: 1.6px;">Sistema</p>
+                    <x-nav-link href="{{ route('sistema') }}" :active="request()->routeIs('sistema*')">
+                        <svg width="16" height="16" fill="none" stroke="#4e9e5a" stroke-width="1.8" viewBox="0 0 24 24" class="mr-3 flex-shrink-0">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Log de actividad
+                    </x-nav-link>
+                </div>
+                @endif
             </nav>
 
             {{-- User chip --}}
