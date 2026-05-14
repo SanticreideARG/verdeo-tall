@@ -5,6 +5,7 @@ use Livewire\Attributes\Layout;
 use App\Models\Conversacion;
 use App\Models\Orden;
 use App\Models\User;
+use App\Models\Zona;
 use Illuminate\Support\Facades\Redis;
 
 new #[Layout('layouts.app', ['title' => 'Dashboard'])] class extends Component {
@@ -29,23 +30,21 @@ new #[Layout('layouts.app', ['title' => 'Dashboard'])] class extends Component {
             $this->mensajesEnCola = 0;
         }
 
-        $zonas = [
-            'bsas'      => ['nombre' => 'Buenos Aires',   'numero' => '5491158393179'],
-            'valle_nqn' => ['nombre' => 'Valle NQN/Roca', 'numero' => '5492995493102'],
-            'cordoba'   => ['nombre' => 'Córdoba',        'numero' => '5493513007925'],
-            'mendoza'   => ['nombre' => 'Mendoza',        'numero' => '5492615117163'],
-        ];
-
         $activas = Conversacion::activas()
             ->selectRaw('zona, count(*) as total')
             ->groupBy('zona')
             ->pluck('total', 'zona');
 
-        $this->porZona = collect($zonas)->map(fn($z, $id) => [
-            'zona'    => $z['nombre'],
-            'numero'  => $z['numero'],
-            'activas' => $activas->get($id, 0),
-        ])->values()->all();
+        $this->porZona = Zona::where('activa', true)
+            ->orderBy('nombre')
+            ->get()
+            ->map(fn($z) => [
+                'zona'    => $z->nombre,
+                'numero'  => $z->whatsapp ?? '—',
+                'slug'    => $z->slug,
+                'activas' => $activas->get($z->slug, 0),
+            ])
+            ->all();
     }
 
 }; ?>
@@ -71,7 +70,10 @@ new #[Layout('layouts.app', ['title' => 'Dashboard'])] class extends Component {
     {{-- Stat cards --}}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
 
-        <div class="stat-card">
+        <a href="{{ route('conversaciones') }}" wire:navigate class="stat-card block"
+           style="transition: border-color .2s, box-shadow .2s; cursor: pointer;"
+           onmouseover="this.style.borderColor='rgba(78,158,90,0.4)'; this.style.boxShadow='0 8px 28px rgba(0,0,0,0.35)'"
+           onmouseout="this.style.borderColor=''; this.style.boxShadow=''">
             <div class="flex items-start justify-between mb-3">
                 <span class="stat-label">Chats hoy</span>
                 <div class="stat-icon">
@@ -82,9 +84,12 @@ new #[Layout('layouts.app', ['title' => 'Dashboard'])] class extends Component {
             </div>
             <div class="stat-value">{{ $conversacionesHoy }}</div>
             <div class="text-xs mt-2" style="color: var(--vd-muted);">conversaciones iniciadas</div>
-        </div>
+        </a>
 
-        <div class="stat-card">
+        <a href="{{ route('conversaciones') }}" wire:navigate class="stat-card block"
+           style="transition: border-color .2s, box-shadow .2s; cursor: pointer;"
+           onmouseover="this.style.borderColor='rgba(78,158,90,0.4)'; this.style.boxShadow='0 8px 28px rgba(0,0,0,0.35)'"
+           onmouseout="this.style.borderColor=''; this.style.boxShadow=''">
             <div class="flex items-start justify-between mb-3">
                 <span class="stat-label">Total activas</span>
                 <div class="stat-icon">
@@ -98,9 +103,12 @@ new #[Layout('layouts.app', ['title' => 'Dashboard'])] class extends Component {
                 <span class="trend-up">▲ activo</span>
                 <span class="text-xs" style="color: var(--vd-muted);">en curso</span>
             </div>
-        </div>
+        </a>
 
-        <div class="stat-card">
+        <a href="{{ route('clientes.crm') }}" wire:navigate class="stat-card block"
+           style="transition: border-color .2s, box-shadow .2s; cursor: pointer;"
+           onmouseover="this.style.borderColor='rgba(78,158,90,0.4)'; this.style.boxShadow='0 8px 28px rgba(0,0,0,0.35)'"
+           onmouseout="this.style.borderColor=''; this.style.boxShadow=''">
             <div class="flex items-start justify-between mb-3">
                 <span class="stat-label">Clientes</span>
                 <div class="stat-icon">
@@ -111,9 +119,12 @@ new #[Layout('layouts.app', ['title' => 'Dashboard'])] class extends Component {
             </div>
             <div class="stat-value">{{ $totalClientes }}</div>
             <div class="text-xs mt-2" style="color: var(--vd-muted);">registrados en sistema</div>
-        </div>
+        </a>
 
-        <div class="stat-card">
+        <a href="{{ route('ordenes') }}" wire:navigate class="stat-card block"
+           style="transition: border-color .2s, box-shadow .2s; cursor: pointer;"
+           onmouseover="this.style.borderColor='{{ $ordenesPendientes > 0 ? 'rgba(200,160,48,0.5)' : 'rgba(78,158,90,0.4)' }}'; this.style.boxShadow='0 8px 28px rgba(0,0,0,0.35)'"
+           onmouseout="this.style.borderColor=''; this.style.boxShadow=''">
             <div class="flex items-start justify-between mb-3">
                 <span class="stat-label">Órdenes pend.</span>
                 <div class="stat-icon">
@@ -132,7 +143,7 @@ new #[Layout('layouts.app', ['title' => 'Dashboard'])] class extends Component {
                     <span class="trend-up">✓ al día</span>
                 @endif
             </div>
-        </div>
+        </a>
 
     </div>
 
@@ -155,7 +166,10 @@ new #[Layout('layouts.app', ['title' => 'Dashboard'])] class extends Component {
             </div>
             <div class="flex flex-col gap-3">
                 @forelse($porZona as $z)
-                <div class="zone-row">
+                <a href="{{ route('zonas') }}" wire:navigate class="zone-row"
+                   style="transition: background .15s, border-color .15s; cursor: pointer; text-decoration: none;"
+                   onmouseover="this.style.background='rgba(58,125,68,0.06)'; this.style.borderRadius='12px';"
+                   onmouseout="this.style.background=''; this.style.borderRadius='';">
                     <div class="flex items-center gap-3" style="color: var(--vd-text); font-size: 14px;">
                         <div class="zone-dot"></div>
                         <div>
@@ -167,7 +181,7 @@ new #[Layout('layouts.app', ['title' => 'Dashboard'])] class extends Component {
                         <span class="stat-value text-base">{{ $z['activas'] }}</span>
                         <span class="badge-green">Activo</span>
                     </div>
-                </div>
+                </a>
                 @empty
                 <p class="text-sm text-center py-6" style="color: var(--vd-muted);">Sin zonas configuradas.</p>
                 @endforelse

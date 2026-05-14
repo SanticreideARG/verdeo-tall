@@ -4,6 +4,7 @@ use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
 use Livewire\WithFileUploads;
 use App\Models\User;
+use App\Models\Zona;
 
 new #[Layout('layouts.app', ['title' => 'Registrar cliente'])] class extends Component {
 
@@ -27,6 +28,11 @@ new #[Layout('layouts.app', ['title' => 'Registrar cliente'])] class extends Com
         $this->proximoNumero = User::nextNumeroCliente();
     }
 
+    public function with(): array
+    {
+        return ['zonas' => Zona::where('activa', true)->orderBy('nombre')->get()];
+    }
+
     public function guardar(): void
     {
         $this->validate([
@@ -35,13 +41,15 @@ new #[Layout('layouts.app', ['title' => 'Registrar cliente'])] class extends Com
             'whatsapp'  => 'required|max:25|unique:users,whatsapp',
             'ciudad'    => 'nullable|max:80',
             'direccion' => 'nullable|max:200',
-            'zona'      => 'nullable|max:80',
+            'zona'      => 'required|exists:zonas,slug',
             'foto'      => 'nullable|image|max:2048',
         ], [
             'nombre.required'   => 'El nombre es obligatorio.',
             'nombre.min'        => 'Mínimo 2 caracteres.',
             'whatsapp.required' => 'El número de WhatsApp es obligatorio.',
             'whatsapp.unique'   => 'Ya existe un cliente con ese número.',
+            'zona.required'     => 'Seleccioná una zona.',
+            'zona.exists'       => 'Zona inválida.',
             'foto.image'        => 'Debe ser una imagen.',
             'foto.max'          => 'Máx 2 MB.',
         ]);
@@ -193,14 +201,14 @@ new #[Layout('layouts.app', ['title' => 'Registrar cliente'])] class extends Com
                         <input type="text" wire:model="ciudad" class="input" placeholder="Buenos Aires">
                     </div>
                     <div>
-                        <label class="label">Zona</label>
-                        <select wire:model="zona" class="input">
-                            <option value="">— Sin asignar —</option>
-                            <option value="bsas">BSAS</option>
-                            <option value="valle_nqn">Valle NQN / Roca</option>
-                            <option value="cordoba">Córdoba</option>
-                            <option value="mendoza">Mendoza</option>
+                        <label class="label">Zona <span style="color:#fca5a5">*</span></label>
+                        <select wire:model="zona" class="input @error('zona') border-red-400 @enderror">
+                            <option value="">— Seleccionar zona —</option>
+                            @foreach($zonas as $z)
+                                <option value="{{ $z->slug }}">{{ $z->nombre }}</option>
+                            @endforeach
                         </select>
+                        @error('zona') <p class="text-xs mt-1" style="color:#fca5a5;">{{ $message }}</p> @enderror
                     </div>
                     <div class="sm:col-span-2">
                         <label class="label">Dirección</label>

@@ -6,12 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class Enlace extends Model
 {
-    protected $fillable = ['titulo', 'url', 'descripcion', 'orden', 'activo'];
-
+    protected $fillable = ['titulo', 'url', 'descripcion', 'categoria', 'orden', 'activo', 'clicks'];
     protected $casts = ['activo' => 'boolean'];
 
-    public function scopeActivos($query)
+    public function scopeActivos($query) { return $query->where('activo', true); }
+
+    public function faviconDomain(): string
     {
-        return $query->where('activo', true);
+        return parse_url($this->url, PHP_URL_HOST) ?? '';
     }
+
+    public function incrementarClicks(): void { $this->increment('clicks'); }
 }

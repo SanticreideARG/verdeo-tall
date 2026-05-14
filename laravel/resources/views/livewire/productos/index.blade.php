@@ -4,6 +4,7 @@ use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
 use App\Models\Producto;
 use App\Models\Plato;
+use App\Models\Zona;
 
 new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
 
@@ -203,6 +204,28 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
     }
 
     public function cancelarImport(): void { $this->importMenuId = null; }
+
+    /* ── Sync menus to all zones ───────────────────────────── */
+
+    public function sincronizarMenusZonas(): void
+    {
+        if (! auth()->user()->isAdmin()) return;
+
+        $menus = Producto::orderBy('orden')
+            ->with(['platos' => fn ($q) => $q->where('activo', true)->orderBy('orden')])
+            ->get()
+            ->map(fn ($p) => [
+                'nombre'      => $p->tipoLabel(),
+                'tipo'        => $p->tipo,
+                'descripcion' => $p->descripcion ?? '',
+                'platos'      => $p->platos->pluck('nombre')->values()->toArray(),
+            ])
+            ->toArray();
+
+        Zona::all()->each(fn ($z) => $z->update(['menus_semanales' => $menus]));
+
+        session()->flash('success', 'Menús sincronizados en todas las zonas.');
+    }
 
 }; ?>
 
@@ -481,6 +504,33 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
     @endforeach
 
     </div>
+
+    @if($tab === 'menus' && auth()->user()->isAdmin())
+    <div class="mt-5 flex items-center justify-between p-4 rounded-2xl"
+         style="background: rgba(58,125,68,0.06); border: 1px solid rgba(58,125,68,0.2);">
+        <div>
+            <p class="text-sm font-semibold" style="color: var(--vd-text);">Sincronizar menús en Zonas</p>
+            <p class="text-xs mt-0.5" style="color: var(--vd-muted);">
+                Aplica los platos activos de cada menú a todas las zonas como punto de partida.
+                Podés ajustar por zona en la sección Zonas.
+            </p>
+        </div>
+        <button wire:click="sincronizarMenusZonas"
+                wire:loading.attr="disabled"
+                wire:target="sincronizarMenusZonas"
+                wire:confirm="Esto sobreescribe los menus_semanales de todas las zonas con los platos actuales. Continuar?"
+                class="btn-primary flex-shrink-0 ml-4 flex items-center gap-2"
+                style="white-space: nowrap;">
+            <svg wire:loading.remove wire:target="sincronizarMenusZonas"
+                 width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
+            </svg>
+            <span wire:loading.remove wire:target="sincronizarMenusZonas">Guardar en Zonas</span>
+            <span wire:loading wire:target="sincronizarMenusZonas">Sincronizando…</span>
+        </button>
+    </div>
+    @endif
     @endif {{-- /tab menus --}}
 
     {{-- ═══ TAB: PRECIOS ══════════════════════════════════════ --}}

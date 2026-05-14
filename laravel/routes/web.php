@@ -40,6 +40,13 @@ Route::middleware('auth')->group(function () {
     Volt::route('/conversaciones',    'conversaciones.index')   ->name('conversaciones');
     Volt::route('/zonas',             'zonas.index')            ->name('zonas');
     Volt::route('/enlaces',             'enlaces.index')          ->name('enlaces');
+
+// Enlace click tracker
+Route::get('/ir/{enlace}', function (\App\Models\Enlace $enlace) {
+    $enlace->incrementarClicks();
+    return redirect($enlace->url);
+})->middleware(['auth'])->name('enlaces.ir');
+
     Volt::route('/estadisticas',       'estadisticas.index')     ->name('estadisticas');
     Volt::route('/productos',          'productos.index')        ->name('productos');
     Volt::route('/ordenes',            'ordenes.index')          ->name('ordenes');
@@ -48,8 +55,12 @@ Route::middleware('auth')->group(function () {
     Volt::route('/usuarios/crear/cliente',    'usuarios.crear-cliente')    ->name('usuarios.crear-cliente');
     Volt::route('/usuarios/crear/colaborador','usuarios.crear-colaborador')->name('usuarios.crear-colaborador');
     Volt::route('/usuarios/{user}',           'usuarios.ver')              ->name('usuarios.ver');
+
+    Volt::route('/clientes',                  'clientes.index')            ->name('clientes');
+    Volt::route('/clientes/crm',              'clientes.crm')              ->name('clientes.crm');
     Volt::route('/ajustes',                   'ajustes.index')             ->name('ajustes');
     Volt::route('/mi-cuenta',         'mi-cuenta.index')        ->name('mi-cuenta');
+    Volt::route('/chat',              'chat.index')             ->name('chat');
     Volt::route('/ai',                'ai.chat')                ->name('ai.chat');
 
     // ─── Marketing de Redes ───────────────────────────────────────────────────

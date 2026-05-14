@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Verdeo Mobile · Cliente &amp; Colaborador</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; font-family: 'Barlow', system-ui, sans-serif; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+
+<template id="__bundler_thumbnail" data-bg-color="#0b1828">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#0b1828"/>
+    <!-- Two phone silhouettes -->
+    <g transform="translate(300 120)">
+      <rect width="260" height="560" rx="48" fill="#0f2035" stroke="#3a7d44" stroke-width="3"/>
+      <rect x="20" y="40" width="220" height="60" rx="14" fill="rgba(58,125,68,0.25)"/>
+      <rect x="20" y="120" width="220" height="120" rx="18" fill="rgba(58,125,68,0.15)"/>
+      <rect x="20" y="260" width="100" height="80" rx="14" fill="rgba(255,255,255,0.06)"/>
+      <rect x="140" y="260" width="100" height="80" rx="14" fill="rgba(255,255,255,0.06)"/>
+      <rect x="40" y="490" width="180" height="44" rx="22" fill="rgba(11,24,40,0.85)" stroke="#3a7d44" stroke-width="1.5"/>
+      <circle cx="130" cy="512" r="22" fill="#4e9e5a"/>
+    </g>
+    <g transform="translate(640 120)">
+      <rect width="260" height="560" rx="48" fill="#0f2035" stroke="#3a7d44" stroke-width="3"/>
+      <rect x="20" y="40" width="220" height="60" rx="14" fill="rgba(58,125,68,0.25)"/>
+      <rect x="20" y="120" width="220" height="100" rx="18" fill="rgba(15,32,53,0.9)" stroke="rgba(58,125,68,0.3)" stroke-width="1"/>
+      <rect x="20" y="240" width="220" height="130" rx="18" fill="rgba(200,160,48,0.12)" stroke="rgba(200,160,48,0.35)" stroke-width="1"/>
+      <rect x="40" y="490" width="180" height="44" rx="22" fill="rgba(11,24,40,0.85)" stroke="#3a7d44" stroke-width="1.5"/>
+      <circle cx="130" cy="512" r="22" fill="#c8a030"/>
+    </g>
+    <text x="600" y="730" text-anchor="middle" fill="#4e9e5a" font-family="sans-serif" font-size="28" font-weight="700" letter-spacing="3">VERDEO MOBILE</text>
+  </svg>
+</template>
+
+<div id="root"></div>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="verdeo-mobile-ui.jsx"></script>
+<script type="text/babel" src="cliente-app.jsx"></script>
+<script type="text/babel" src="colaborador-app.jsx"></script>
+
+<script type="text/babel">
+const { useState } = React;
+
+const PhoneCard = ({ children, label, sub }) => (
+  <div style={{
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
+  }}>
+    <div style={{ textAlign: 'center' }}>
+      <div style={{
+        fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20,
+        fontWeight: 700, letterSpacing: 0.5, color: '#1a2536',
+      }}>{label}</div>
+      <div style={{ fontSize: 12, color: 'rgba(60,50,40,0.55)', marginTop: 2 }}>{sub}</div>
+    </div>
+    <IOSDevice width={380} height={820} dark={true}>
+      {children}
+    </IOSDevice>
+  </div>
+);
+
+const App = () => (
+  <DesignCanvas>
+    <DCSection id="apps" title="Verdeo Mobile" subtitle="Mobile-first · Glassmorphic leaf dock · Tocá el FAB ✚">
+      <DCArtboard id="cliente" label="Cliente · Lucía" width={420} height={920}>
+        <PhoneCard label="App Cliente" sub="Pedido activo · re-orden rápido">
+          <ClienteApp />
+        </PhoneCard>
+      </DCArtboard>
+      <DCArtboard id="colaborador" label="Colaborador · Mateo" width={420} height={920}>
+        <PhoneCard label="App Colaborador" sub="Ruta del día · próximas entregas">
+          <ColaboradorApp />
+        </PhoneCard>
+      </DCArtboard>
+    </DCSection>
+  </DesignCanvas>
+);
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+</body>
+</html>

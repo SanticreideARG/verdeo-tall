@@ -19,7 +19,7 @@ new #[Layout('layouts.app', ['title' => 'Usuarios'])] class extends Component {
 
     public function with(): array
     {
-        return ['usuarios' => User::orderBy('name')->get()];
+        return ['usuarios' => User::whereNotIn('role', ['cliente'])->orderBy('name')->get()];
     }
 
     public function cambiarRol(int $id, string $role): void
@@ -75,17 +75,7 @@ new #[Layout('layouts.app', ['title' => 'Usuarios'])] class extends Component {
 
     <div class="flex items-center justify-end mb-6 gap-3 flex-wrap">
         @if(auth()->user()->isAdmin())
-<a href="{{ route('usuarios.crear-cliente') }}" wire:navigate
-               class="btn-secondary text-sm flex items-center gap-2"
-               style="border-color: rgba(200,160,48,0.4); color: #c8a030;"
-               onmouseover="this.style.background='rgba(200,160,48,0.08)'"
-               onmouseout="this.style.background=''">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-                </svg>
-                Registrar cliente
-            </a>
-            <a href="{{ route('usuarios.crear-colaborador') }}" wire:navigate
+<a href="{{ route('usuarios.crear-colaborador') }}" wire:navigate
                class="btn-secondary text-sm flex items-center gap-2"
                style="border-color: rgba(139,92,246,0.4); color: #a78bfa;"
                onmouseover="this.style.background='rgba(139,92,246,0.08)'"
