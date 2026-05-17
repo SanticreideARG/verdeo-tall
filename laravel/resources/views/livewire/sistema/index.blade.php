@@ -46,6 +46,73 @@ new #[Layout('layouts.app', ['title' => 'Sistema · Log'])] class extends Compon
 }; ?>
 
 <div>
+
+    {{-- Backups de BD --}}
+    <div class="card mb-6" style="border-color: rgba(96,165,250,0.2);">
+        <div class="flex items-start justify-between gap-4 mb-5"
+             style="border-bottom: 1px solid var(--vd-bdr-soft); padding-bottom: 14px;">
+            <div>
+                <h2 class="font-condensed font-bold text-lg" style="color: var(--vd-text);">Backups de base de datos</h2>
+                <p class="text-sm mt-0.5" style="color: var(--vd-muted);">
+                    Los backups incluirán datos de clientes, números de WhatsApp e historial de conversaciones.
+                </p>
+            </div>
+            <div class="flex gap-2 flex-shrink-0 flex-wrap justify-end">
+                <button disabled title="Próximamente"
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-not-allowed"
+                        style="background: rgba(255,255,255,0.04); border: 1px solid var(--vd-bdr); color: var(--vd-muted-2);">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/>
+                    </svg>
+                    Exportar clientes &amp; teléfonos
+                    <span class="badge-gray" style="font-size:9px; padding:1px 5px; margin-left:2px;">próximamente</span>
+                </button>
+                <button disabled title="Próximamente"
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-not-allowed"
+                        style="background: rgba(255,255,255,0.04); border: 1px solid var(--vd-bdr); color: var(--vd-muted-2);">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/>
+                    </svg>
+                    Historial de mensajes
+                    <span class="badge-gray" style="font-size:9px; padding:1px 5px; margin-left:2px;">próximamente</span>
+                </button>
+                <button disabled title="Próximamente"
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-not-allowed"
+                        style="background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.25); color: #93c5fd;">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75"/>
+                    </svg>
+                    Backup completo
+                    <span class="badge-gray" style="font-size:9px; padding:1px 5px; margin-left:2px;">próximamente</span>
+                </button>
+            </div>
+        </div>
+        <div class="rounded-xl overflow-hidden" style="border: 1px solid var(--vd-bdr-soft);">
+            <table class="w-full text-sm">
+                <thead style="background: var(--vd-bg-2);">
+                    <tr>
+                        <th class="text-left px-4 py-2.5 text-xs font-condensed font-bold uppercase tracking-wide" style="color: var(--vd-muted-2);">Fecha</th>
+                        <th class="text-left px-4 py-2.5 text-xs font-condensed font-bold uppercase tracking-wide" style="color: var(--vd-muted-2);">Tipo</th>
+                        <th class="text-left px-4 py-2.5 text-xs font-condensed font-bold uppercase tracking-wide" style="color: var(--vd-muted-2);">Tamaño</th>
+                        <th class="text-center px-4 py-2.5 text-xs font-condensed font-bold uppercase tracking-wide" style="color: var(--vd-muted-2);">Estado</th>
+                        <th class="text-right px-4 py-2.5 text-xs font-condensed font-bold uppercase tracking-wide" style="color: var(--vd-muted-2);">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="5" class="px-4 py-10 text-center">
+                            <svg class="mx-auto mb-3 opacity-30" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375"/>
+                            </svg>
+                            <p class="text-sm font-medium" style="color: var(--vd-muted);">No hay backups generados todavía.</p>
+                            <p class="text-xs mt-1" style="color: var(--vd-muted-2);">Los backups automáticos y manuales aparecerán aquí.</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     {{-- Header --}}
     <div class="flex items-start justify-between gap-4 mb-6 flex-wrap">
         <div>

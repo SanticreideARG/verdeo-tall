@@ -13,10 +13,20 @@ class Orden extends Model
     protected array $logCampos = ['estado', 'zona', 'notas', 'total'];
     protected $table = 'ordenes';
 
-    protected $fillable = ['numero', 'user_id', 'estado', 'zona', 'notas', 'total'];
+    public const INGRESA_POR = [
+        'whatsapp' => 'WhatsApp',
+        'mail'     => 'Mail',
+    ];
+
+    protected $fillable = [
+        'numero', 'user_id', 'estado', 'zona', 'notas', 'total',
+        'ingresa_por', 'direccion', 'latitud', 'longitud',
+    ];
 
     protected $casts = [
-        'total' => 'decimal:2',
+        'total'    => 'decimal:2',
+        'latitud'  => 'float',
+        'longitud' => 'float',
     ];
 
     public static array $estados = [
@@ -35,11 +45,11 @@ class Orden extends Model
         'cancelada'          => 'badge-red',
     ];
 
-    public static function generarNumero(): string
+    public static function generarNumero(int $userId): string
     {
-        $year = now()->year;
-        $count = static::whereYear('created_at', $year)->count() + 1;
-        return sprintf('ORD-%d-%04d', $year, $count);
+        $numCliente  = str_pad(User::find($userId)?->numero_cliente ?? 0, 6, '0', STR_PAD_LEFT);
+        $numOrden    = str_pad(static::where('user_id', $userId)->count() + 1, 6, '0', STR_PAD_LEFT);
+        return "{$numCliente}-{$numOrden}";
     }
 
     public function recalcularTotal(): void

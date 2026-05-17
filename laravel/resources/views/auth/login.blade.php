@@ -148,6 +148,13 @@
         <button type="submit" class="login-btn">Ingresar al sistema</button>
     </form>
 
+    <p style="text-align:center;font-size:12px;margin-top:20px;color:var(--vd-muted);">
+        ¿Primera vez?
+        <a href="{{ route('portal.registro') }}" style="color:#4e9e5a;font-weight:700;text-decoration:none;">
+            Registrate como cliente
+        </a>
+    </p>
+
     {{-- Theme toggle --}}
     <div style="display:flex;justify-content:center;margin-top:24px;">
         <button onclick="verdeoToggleTheme()" class="theme-toggle" title="Cambiar tema">

@@ -51,6 +51,7 @@ class User extends Authenticatable
             'admin'            => 'Administrador',
             'responsable_zona' => 'Resp. de Zona',
             'colaborador'      => 'Colaborador',
+            'cocina'           => 'Cocina',
             'cliente'          => 'Cliente',
         ];
     }
@@ -75,9 +76,19 @@ class User extends Authenticatable
         return $this->role === 'colaborador';
     }
 
+    public function isCocina(): bool
+    {
+        return $this->role === 'cocina';
+    }
+
     public function isCliente(): bool
     {
         return $this->role === 'cliente';
+    }
+
+    public function ordenes(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Orden::class, 'user_id');
     }
 
     public function fotoUrl(): ?string

@@ -65,10 +65,13 @@ new #[Layout('layouts.app', ['title' => 'Estadísticas'])] class extends Compone
             ->groupBy('zona')->orderByDesc('total')->get()
             ->map(fn($r) => ['zona' => $label($r->zona), 'total' => $r->total, 'ingresos' => (float) $r->ingresos]);
 
-        $topProductos = OrdenItem::selectRaw('producto_id, sum(cantidad) as total_cantidad, sum(subtotal) as total_ingresos')
-            ->with('producto:id,nombre')
+        $topProductos = OrdenItem::selectRaw('producto_id, tamano, sum(cantidad) as total_unidades, sum(subtotal) as total_pesos')
+            ->with('producto:id,nombre,tipo')
             ->whereHas('orden', fn($q) => $q->whereBetween('created_at', [$desde, $hasta]))
-            ->groupBy('producto_id')->orderByDesc('total_ingresos')->limit(5)->get();
+            ->groupBy('producto_id', 'tamano')
+            ->orderByDesc('total_unidades')
+            ->limit(12)
+            ->get();
 
         /* ── Chart data (one point per day in range) ────────────────── */
         $dias      = max(1, (int) $desde->diffInDays($hasta)) + 1;
@@ -221,6 +224,75 @@ new #[Layout('layouts.app', ['title' => 'Estadísticas'])] class extends Compone
             @endforeach
         </div>
 
+        {{-- SVG bar chart: órdenes por día --}}
+        @php
+            $svgDays   = collect($chartData);
+            $svgMax    = max(1, $svgDays->max('ordenes'));
+            $svgN      = count($chartData);
+            $svgW      = 760; $svgH = 130;
+            $svgPadL   = 28;  $svgPadR = 8; $svgPadT = 12; $svgPadB = 28;
+            $svgChartW = $svgW - $svgPadL - $svgPadR;
+            $svgChartH = $svgH - $svgPadT - $svgPadB;
+            $svgSlot   = $svgN > 0 ? $svgChartW / $svgN : $svgChartW;
+            $svgBarW   = max(4, $svgSlot * 0.72);
+            $svgGridLines = [0, 25, 50, 75, 100];
+        @endphp
+        <div class="card p-0 overflow-hidden mb-0">
+            <div class="px-6 py-4 flex items-center justify-between" style="border-bottom: 1px solid var(--vd-bdr);">
+                <h3 class="font-semibold text-sm" style="color: var(--vd-text);">Órdenes por día</h3>
+                <span class="text-xs" style="color: var(--vd-muted);">{{ $svgN }} {{ $svgN === 1 ? 'día' : 'días' }}</span>
+            </div>
+            <div class="px-4 pt-4 pb-2 overflow-x-auto">
+                <svg viewBox="0 0 {{ $svgW }} {{ $svgH }}"
+                     style="width:100%;min-width:{{ max(320, $svgN * 22) }}px;height:{{ $svgH + 4 }}px;display:block;"
+                     xmlns="http://www.w3.org/2000/svg">
+
+                    {{-- Horizontal grid lines + Y labels --}}
+                    @foreach($svgGridLines as $pct)
+                    @php
+                        $gVal = round($svgMax * $pct / 100);
+                        $gY   = $svgPadT + $svgChartH - ($svgChartH * $pct / 100);
+                    @endphp
+                    <line x1="{{ $svgPadL }}" y1="{{ $gY }}" x2="{{ $svgW - $svgPadR }}" y2="{{ $gY }}"
+                          stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+                    @if($pct > 0)
+                    <text x="{{ $svgPadL - 4 }}" y="{{ $gY + 3 }}" text-anchor="end"
+                          fill="rgba(240,244,240,0.3)" font-size="8" font-family="monospace">{{ $gVal }}</text>
+                    @endif
+                    @endforeach
+
+                    {{-- Bars + labels --}}
+                    @foreach($chartData as $i => $d)
+                    @php
+                        $bH = $svgChartH * ($d['ordenes'] / $svgMax);
+                        $bX = $svgPadL + $i * $svgSlot + ($svgSlot - $svgBarW) / 2;
+                        $bY = $svgPadT + $svgChartH - $bH;
+                    @endphp
+                    {{-- Bar --}}
+                    <rect x="{{ round($bX, 1) }}" y="{{ round($bY, 1) }}"
+                          width="{{ round($svgBarW, 1) }}" height="{{ round(max(0, $bH), 1) }}"
+                          fill="{{ $d['ordenes'] > 0 ? 'rgba(78,158,90,0.75)' : 'rgba(78,158,90,0.1)' }}"
+                          rx="2"/>
+                    {{-- Count label on top of bar --}}
+                    @if($d['ordenes'] > 0)
+                    <text x="{{ round($bX + $svgBarW / 2, 1) }}" y="{{ round($bY - 3, 1) }}"
+                          text-anchor="middle" fill="rgba(78,158,90,0.9)"
+                          font-size="{{ $svgN > 20 ? 7 : 9 }}" font-weight="600">{{ $d['ordenes'] }}</text>
+                    @endif
+                    {{-- Day label --}}
+                    <text x="{{ round($bX + $svgBarW / 2, 1) }}" y="{{ $svgH - 4 }}"
+                          text-anchor="middle" fill="rgba(240,244,240,0.35)"
+                          font-size="{{ $svgN > 20 ? 6 : 8 }}" font-family="monospace">{{ $d['fecha'] }}</text>
+                    @endforeach
+
+                    {{-- Baseline --}}
+                    <line x1="{{ $svgPadL }}" y1="{{ $svgPadT + $svgChartH }}"
+                          x2="{{ $svgW - $svgPadR }}" y2="{{ $svgPadT + $svgChartH }}"
+                          stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+                </svg>
+            </div>
+        </div>
+
         {{-- Chart: actividad del período --}}
         <div class="card p-0 overflow-hidden"
              x-data="{
@@ -333,35 +405,55 @@ new #[Layout('layouts.app', ['title' => 'Estadísticas'])] class extends Compone
                 </table>
             </div>
 
-            {{-- Top menús --}}
+            {{-- Productos más vendidos --}}
             <div class="card p-0 overflow-hidden">
                 <div class="px-6 py-4" style="border-bottom: 1px solid var(--vd-bdr);">
-                    <h3 class="font-semibold text-sm" style="color: var(--vd-text);">Top 5 menús</h3>
+                    <h3 class="font-semibold text-sm" style="color: var(--vd-text);">Productos más vendidos</h3>
+                    <p class="text-xs mt-0.5" style="color: var(--vd-muted-2);">por tipo y tamaño</p>
                 </div>
-                @php $maxP = $topProductos->max('total_ingresos') ?: 1; @endphp
+                @php $maxP = $topProductos->max('total_unidades') ?: 1; @endphp
                 <table class="w-full text-sm">
                     <thead style="background: var(--vd-bg-2);">
                         <tr>
                             <th class="text-left px-5 py-3 text-xs font-semibold uppercase" style="color: var(--vd-muted-2);">Menú</th>
-                            <th class="text-right px-5 py-3 text-xs font-semibold uppercase" style="color: var(--vd-muted-2);">Uds.</th>
-                            <th class="text-right px-5 py-3 text-xs font-semibold uppercase" style="color: var(--vd-muted-2);">Ingresos</th>
-                            <th class="px-5 py-3 w-24"></th>
+                            <th class="text-center px-3 py-3 text-xs font-semibold uppercase" style="color: var(--vd-muted-2);">Tam.</th>
+                            <th class="text-right px-3 py-3 text-xs font-semibold uppercase" style="color: var(--vd-muted-2);">Uds.</th>
+                            <th class="text-right px-5 py-3 text-xs font-semibold uppercase" style="color: var(--vd-muted-2);">Total $</th>
+                            <th class="px-4 py-3 w-20"></th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($topProductos as $tp)
+                        @php $p = $tp->producto; @endphp
                         <tr style="border-bottom: 1px solid var(--vd-bdr-soft);">
-                            <td class="px-5 py-3 font-medium text-xs" style="color: var(--vd-muted);">{{ $tp->producto?->nombre ?? '—' }}</td>
-                            <td class="px-5 py-3 text-right" style="color: var(--vd-muted);">{{ number_format($tp->total_cantidad, 0, ',', '.') }}</td>
-                            <td class="px-5 py-3 text-right font-mono text-xs" style="color: var(--vd-green-lt);">${{ number_format($tp->total_ingresos, 0, ',', '.') }}</td>
-                            <td class="px-5 py-3">
+                            <td class="px-5 py-2.5">
+                                <p class="font-medium text-xs" style="color: var(--vd-text-soft);">{{ $p?->nombre ?? '—' }}</p>
+                                @if($p?->tipo)
+                                <span class="text-[10px] px-1.5 py-0.5 rounded"
+                                      style="background: rgba(78,158,90,0.1); color: #4e9e5a;">{{ $p->tipo }}</span>
+                                @endif
+                            </td>
+                            <td class="px-3 py-2.5 text-center">
+                                <span class="text-xs font-mono px-2 py-0.5 rounded"
+                                      style="background: var(--vd-bg-2); color: var(--vd-muted); border: 1px solid var(--vd-bdr-soft);">
+                                    {{ $tp->tamano }}
+                                </span>
+                            </td>
+                            <td class="px-3 py-2.5 text-right font-bold text-sm" style="color: var(--vd-text);">
+                                {{ number_format($tp->total_unidades, 0, ',', '.') }}
+                            </td>
+                            <td class="px-5 py-2.5 text-right font-mono text-xs" style="color: var(--vd-green-lt);">
+                                ${{ number_format($tp->total_pesos, 0, ',', '.') }}
+                            </td>
+                            <td class="px-4 py-2.5">
                                 <div class="h-1.5 rounded-full overflow-hidden" style="background: var(--vd-bg-2);">
-                                    <div class="h-full rounded-full" style="width: {{ round($tp->total_ingresos / $maxP * 100) }}%; background: rgba(200,160,48,0.7);"></div>
+                                    <div class="h-full rounded-full"
+                                         style="width: {{ round($tp->total_unidades / $maxP * 100) }}%; background: rgba(200,160,48,0.7);"></div>
                                 </div>
                             </td>
                         </tr>
                         @empty
-                        <tr><td colspan="4" class="px-5 py-6 text-center text-sm" style="color: var(--vd-muted-2);">Sin ventas registradas</td></tr>
+                        <tr><td colspan="5" class="px-5 py-6 text-center text-sm" style="color: var(--vd-muted-2);">Sin ventas registradas en este período</td></tr>
                         @endforelse
                     </tbody>
                 </table>

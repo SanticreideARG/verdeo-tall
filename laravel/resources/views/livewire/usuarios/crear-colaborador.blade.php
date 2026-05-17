@@ -18,6 +18,7 @@ new #[Layout('layouts.app', ['title' => 'Registrar colaborador'])] class extends
     public string $email    = '';
     public string $password = '';
     public string $zona     = '';
+    public string $role     = 'colaborador';
     public        $foto     = null;
 
     public function mount(): void
@@ -37,6 +38,7 @@ new #[Layout('layouts.app', ['title' => 'Registrar colaborador'])] class extends
         $this->validate([
             'nombre'   => 'required|min:2|max:80',
             'apellido' => 'required|min:2|max:80',
+            'role'     => 'required|in:responsable_zona,colaborador,cocina',
             'zona'     => 'required|exists:zonas,slug',
             'ciudad'   => 'nullable|max:80',
             'whatsapp' => 'nullable|max:25',
@@ -65,7 +67,7 @@ new #[Layout('layouts.app', ['title' => 'Registrar colaborador'])] class extends
             'apellido' => $this->apellido,
             'email'    => $this->email,
             'password' => Hash::make($this->password),
-            'role'     => 'colaborador',
+            'role'     => $this->role,
             'zona'     => $this->zona,
             'whatsapp' => $this->whatsapp ?: null,
             'ciudad'   => $this->ciudad   ?: null,
@@ -180,13 +182,31 @@ new #[Layout('layouts.app', ['title' => 'Registrar colaborador'])] class extends
                 </div>
             </div>
 
-            {{-- Zona --}}
+            {{-- Rol + Zona --}}
             <div class="card">
                 <h3 class="font-condensed font-bold tracking-wide mb-5"
                     style="color: var(--vd-muted); letter-spacing: 1px; text-transform: uppercase; font-size: 11px;
                            border-bottom: 1px solid var(--vd-bdr-soft); padding-bottom: 12px;">
-                    Zona asignada
+                    Rol y zona asignada
                 </h3>
+                <div class="mb-4">
+                    <label class="label">Rol <span style="color:#fca5a5">*</span></label>
+                    <select wire:model.live="role" class="input @error('role') border-red-400 @enderror">
+                        <option value="colaborador">Colaborador</option>
+                        <option value="responsable_zona">Responsable de Zona</option>
+                        <option value="cocina">Cocina</option>
+                    </select>
+                    @error('role') <p class="text-xs mt-1" style="color:#fca5a5;">{{ $message }}</p> @enderror
+                    @if($role === 'cocina')
+                        <p class="text-xs mt-1" style="color: var(--vd-muted-2);">
+                            El personal de cocina verá los pedidos aprobados en tiempo real y podrá marcarlos como listos.
+                        </p>
+                    @elseif($role === 'responsable_zona')
+                        <p class="text-xs mt-1" style="color: var(--vd-muted-2);">
+                            El responsable de zona puede confirmar bloques de pedidos y ver conversaciones.
+                        </p>
+                    @endif
+                </div>
                 <div>
                     <label class="label">Zona <span style="color:#fca5a5">*</span></label>
                     <select wire:model="zona" class="input @error('zona') border-red-400 @enderror">

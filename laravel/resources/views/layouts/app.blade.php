@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es" class="h-full" data-theme="dark">
+<html lang="es" class="h-full" data-theme="{{ \App\Models\Setting::get('tema', 'bosque') }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,8 +7,8 @@
     <title>{{ config('app.name', 'Verdeo') }} — {{ $title ?? '' }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
-    {{-- Apply saved theme before first paint --}}
-    <script>(function(){var t=localStorage.getItem('verdeo-theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
+    {{-- Apply saved theme before first paint (localStorage overrides server value for instant flash prevention) --}}
+    <script>(function(){var valid=['bosque','carbon','aurora','cielo','natural','dark','light'];var t=localStorage.getItem('verdeo-theme');if(t&&valid.indexOf(t)>=0){document.documentElement.setAttribute('data-theme',t);}})();</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         @keyframes verdeoFabRing {
@@ -43,6 +43,19 @@
 
             {{-- Nav --}}
             <nav class="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
+
+                {{-- Cocina: standalone solo para rol cocina (admin/responsable la ven en sección Comercial) --}}
+                @if(auth()->user()->isCocina())
+                <x-nav-link href="{{ route('cocina') }}" :active="request()->routeIs('cocina*')">
+                    <svg width="16" height="16" fill="none" stroke="#4e9e5a" stroke-width="1.8" viewBox="0 0 24 24" class="mr-3 flex-shrink-0">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"/>
+                    </svg>
+                    Cocina
+                </x-nav-link>
+                @endif
+
+                {{-- El resto del menú se oculta para el rol cocina --}}
+                @if(!auth()->user()->isCocina())
                 <x-nav-link href="{{ route('dashboard') }}" :active="request()->routeIs('dashboard')">
                     <x-icon-home class="w-4 h-4 mr-3 flex-shrink-0" style="color: #4e9e5a;"/> Dashboard
                 </x-nav-link>
@@ -81,6 +94,26 @@
                     <x-nav-link href="{{ route('ordenes') }}" :active="request()->routeIs('ordenes*')">
                         <x-icon-orders class="w-4 h-4 mr-3 flex-shrink-0" style="color: #4e9e5a;"/> Órdenes
                     </x-nav-link>
+                    @if(auth()->user()->isAdmin() || auth()->user()->isResponsableZona())
+                    <x-nav-link href="{{ route('entregas') }}" :active="request()->routeIs('entregas*')">
+                        <svg width="16" height="16" fill="none" stroke="#4e9e5a" stroke-width="1.8" viewBox="0 0 24 24" class="mr-3 flex-shrink-0">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c-.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z"/>
+                        </svg>
+                        Entregas
+                    </x-nav-link>
+                    <x-nav-link href="{{ route('cocina') }}" :active="request()->routeIs('cocina*')">
+                        <svg width="16" height="16" fill="none" stroke="#4e9e5a" stroke-width="1.8" viewBox="0 0 24 24" class="mr-3 flex-shrink-0">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"/>
+                        </svg>
+                        Cocina
+                    </x-nav-link>
+                    <x-nav-link href="{{ route('redaccion') }}" :active="request()->routeIs('redaccion*')">
+                        <svg width="16" height="16" fill="none" stroke="#4e9e5a" stroke-width="1.8" viewBox="0 0 24 24" class="mr-3 flex-shrink-0">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/>
+                        </svg>
+                        Redacción
+                    </x-nav-link>
+                    @endif
                 </div>
 
                 @if(! auth()->user()->isColaborador())
@@ -200,6 +233,17 @@
                     </x-nav-link>
                 </div>
                 @endif
+                @endif {{-- end @if(!isCocina()) --}}
+
+                {{-- Ayuda: visible para todos --}}
+                <div class="pt-3 mt-1" style="border-top: 1px solid var(--vd-bdr-soft);">
+                    <x-nav-link href="{{ route('ayuda') }}" :active="request()->routeIs('ayuda*')">
+                        <svg width="16" height="16" fill="none" stroke="#4e9e5a" stroke-width="1.8" viewBox="0 0 24 24" class="mr-3 flex-shrink-0">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z"/>
+                        </svg>
+                        Ayuda
+                    </x-nav-link>
+                </div>
             </nav>
 
             {{-- User chip --}}
@@ -338,6 +382,7 @@
                  else if (p.startsWith('/conversaciones'))         this.active = 'conv';
                  else if (p.startsWith('/ordenes'))                this.active = 'ordenes';
                  else if (p.startsWith('/zonas'))                  this.active = 'zonas';
+                 else if (p.startsWith('/portal'))                 this.active = 'portal';
                  else if (p.startsWith('/mi-cuenta'))              this.active = 'cuenta';
                  else                                              this.active = '';
              },
@@ -388,6 +433,7 @@
                      opacity: active ? 1 : 0,
                      left: ({
                          dashboard: '10px',
+                         portal:    '10px',
                          conv:      '58px',
                          zonas:     '58px',
                          ordenes:   '166px',
@@ -396,8 +442,17 @@
                  }">
             </div>
 
-            {{-- COLABORADOR: [Conv][Zonas][FAB][Ordenes][Cuenta] --}}
+            {{-- CLIENTE: [Portal][Conv][FAB][Pedidos][Cuenta] — COLABORADOR: [Conv][Zonas][FAB][Ordenes][Cuenta] --}}
 
+            @if(auth()->user()->isCliente())
+            <a href="{{ route('portal') }}" wire:navigate
+               class="relative z-10 flex items-center justify-center rounded-full"
+               style="width:44px;height:44px;margin:0 2px;"
+               :style="{ color: active==='portal' ? '#fff' : 'rgba(240,244,240,0.45)' }">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/>
+                </svg>
+            </a>
             <a href="{{ route('conversaciones') }}" wire:navigate
                class="relative z-10 flex items-center justify-center rounded-full"
                style="width:44px;height:44px;margin:0 2px;"
@@ -406,7 +461,15 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/>
                 </svg>
             </a>
-
+            @else
+            <a href="{{ route('conversaciones') }}" wire:navigate
+               class="relative z-10 flex items-center justify-center rounded-full"
+               style="width:44px;height:44px;margin:0 2px;"
+               :style="{ color: active==='conv' ? '#fff' : 'rgba(240,244,240,0.45)' }">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/>
+                </svg>
+            </a>
             <a href="{{ route('zonas') }}" wire:navigate
                class="relative z-10 flex items-center justify-center rounded-full"
                style="width:44px;height:44px;margin:0 2px;"
@@ -415,6 +478,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z"/>
                 </svg>
             </a>
+            @endif
 
             <button type="button" @click="fab = !fab"
                     class="relative z-10 flex items-center justify-center rounded-full text-white transition-all duration-300"

@@ -37,7 +37,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/', fn() => redirect()->route('dashboard'));
 
     Volt::route('/dashboard',         'dashboard')              ->name('dashboard');
-    Volt::route('/conversaciones',    'conversaciones.index')   ->name('conversaciones');
+    Volt::route('/conversaciones',             'conversaciones.index') ->name('conversaciones');
+    Volt::route('/conversaciones/{conversacion}', 'conversaciones.ver')   ->name('conversaciones.ver');
     Volt::route('/zonas',             'zonas.index')            ->name('zonas');
     Volt::route('/enlaces',             'enlaces.index')          ->name('enlaces');
 
@@ -63,6 +64,11 @@ Route::get('/ir/{enlace}', function (\App\Models\Enlace $enlace) {
     Volt::route('/chat',              'chat.index')             ->name('chat');
     Volt::route('/ai',                'ai.chat')                ->name('ai.chat');
     Volt::route('/sistema',           'sistema.index')           ->name('sistema');
+    Volt::route('/cocina',            'cocina.index')            ->name('cocina');
+    Volt::route('/redaccion',         'redaccion.index')         ->name('redaccion');
+    Volt::route('/entregas',          'entregas.index')          ->name('entregas');
+    Volt::route('/ayuda',             'ayuda.index')             ->name('ayuda');
+    Volt::route('/portal',            'portal.index')            ->name('portal');
 
     // ─── Marketing de Redes ───────────────────────────────────────────────────
     Volt::route('/marketing/email',     'marketing.email')     ->name('marketing.email');
@@ -72,6 +78,9 @@ Route::get('/ir/{enlace}', function (\App\Models\Enlace $enlace) {
     Volt::route('/marketing/otros',     'marketing.otros')     ->name('marketing.otros');
 
 });
+
+// ─── Portal de clientes (public registration) ────────────────────────────────
+Volt::route('/unirme', 'portal.registro')->name('portal.registro')->middleware('guest');
 
 // ─── External tools (links only) ─────────────────────────────────────────────
 Route::get('/n8n', fn() => redirect('http://localhost:5678'))->name('n8n')->middleware('auth');
