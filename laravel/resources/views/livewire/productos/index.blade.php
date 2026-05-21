@@ -32,6 +32,11 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
     // Delete dish
     public ?int $deletingPlatoId = null;
 
+    // Add/delete menu
+    public bool   $creandoMenu   = false;
+    public string $nuevoMenuTipo = '';
+    public ?int   $deletingMenuId = null;
+
     public function mount(): void
     {
         $this->cargarPrecios();
@@ -205,7 +210,62 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
 
     public function cancelarImport(): void { $this->importMenuId = null; }
 
-    /* ── Sync menus to all zones ───────────────────────────── */
+    /* ── Create menu ──────────────────────────────────────── */
+
+    public function crearMenu(): void
+    {
+        $this->validate(
+            ['nuevoMenuTipo' => 'required|in:keto,anti_age,vegetariano,real,intuitivo'],
+            ['nuevoMenuTipo.required' => 'Seleccioná un tipo de menú.']
+        );
+        if (Producto::where('tipo', $this->nuevoMenuTipo)->exists()) {
+            $this->addError('nuevoMenuTipo', 'Ese tipo de menú ya existe.');
+            return;
+        }
+        $orden = (int) Producto::max('orden') + 1;
+        Producto::create([
+            'nombre' => Producto::tipos()[$this->nuevoMenuTipo],
+            'tipo'   => $this->nuevoMenuTipo,
+            'orden'  => $orden,
+            'activo' => true,
+        ]);
+        $this->creandoMenu   = false;
+        $this->nuevoMenuTipo = '';
+        $this->cargarPrecios();
+        session()->flash('success', 'Menú creado.');
+    }
+
+    public function cancelarCrearMenu(): void
+    {
+        $this->creandoMenu   = false;
+        $this->nuevoMenuTipo = '';
+        $this->resetErrorBag('nuevoMenuTipo');
+    }
+
+    /* ── Delete menu ──────────────────────────────────────── */
+
+    public function confirmarEliminarMenu(int $id): void { $this->deletingMenuId = $id; }
+
+    public function eliminarMenu(): void
+    {
+        if ($this->deletingMenuId) {
+            Producto::findOrFail($this->deletingMenuId)->delete(); // cascade borra platos
+            $this->cargarPrecios();
+        }
+        $this->deletingMenuId = null;
+        session()->flash('success', 'Menú eliminado.');
+    }
+
+    public function cancelarEliminarMenu(): void { $this->deletingMenuId = null; }
+
+    /* ── Sync menus / prices to selected zones ───────────────── */
+
+    private function zonasParaSinc()
+    {
+        $stored = \App\Models\Setting::get('sinc_zonas_ids', '');
+        $ids    = json_decode($stored, true);
+        return is_array($ids) && count($ids) ? Zona::whereIn('id', $ids)->get() : Zona::all();
+    }
 
     public function sincronizarMenusZonas(): void
     {
@@ -218,13 +278,37 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
                 'nombre'      => $p->tipoLabel(),
                 'tipo'        => $p->tipo,
                 'descripcion' => $p->descripcion ?? '',
+                'precio_250g' => (float) $p->precio_250g,
+                'precio_400g' => (float) $p->precio_400g,
                 'platos'      => $p->platos->pluck('nombre')->values()->toArray(),
             ])
             ->toArray();
 
-        Zona::all()->each(fn ($z) => $z->update(['menus_semanales' => $menus]));
+        $this->zonasParaSinc()->each(fn ($z) => $z->update(['menus_semanales' => $menus]));
 
-        session()->flash('success', 'Menús sincronizados en todas las zonas.');
+        session()->flash('success', 'Menús sincronizados en las zonas seleccionadas.');
+    }
+
+    public function sincronizarPreciosZonas(): void
+    {
+        if (! auth()->user()->isAdmin()) return;
+
+        $productos = Producto::orderBy('orden')->get()->keyBy('tipo');
+
+        $this->zonasParaSinc()->each(function ($zona) use ($productos) {
+            $menus = $zona->menus_semanales ?? [];
+            $menus = array_map(function ($menu) use ($productos) {
+                $p = $productos[$menu['tipo']] ?? null;
+                if ($p) {
+                    $menu['precio_250g'] = (float) $p->precio_250g;
+                    $menu['precio_400g'] = (float) $p->precio_400g;
+                }
+                return $menu;
+            }, $menus);
+            $zona->update(['menus_semanales' => $menus]);
+        });
+
+        session()->flash('success', 'Precios sincronizados en las zonas seleccionadas.');
     }
 
 }; ?>
@@ -245,6 +329,15 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
             <h2 class="font-condensed font-bold text-2xl" style="color: var(--vd-text); letter-spacing: 0.5px;">Menús</h2>
             <p class="text-sm mt-1" style="color: var(--vd-muted);">Administrá los platos y precios de cada menú.</p>
         </div>
+        @if($tab === 'menus')
+        @php $tiposDisponibles = array_diff_key(Producto::tipos(), $menus->keyBy('tipo')->toArray()); @endphp
+        <button wire:click="$set('creandoMenu', true)" class="btn-primary flex items-center gap-2">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+            </svg>
+            Nuevo menú
+        </button>
+        @endif
     </div>
 
     {{-- Tab nav --}}
@@ -264,6 +357,62 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
             Precios
         </button>
     </div>
+
+    {{-- New menu modal --}}
+    @if($creandoMenu)
+    @php $tiposLibres = array_diff_key(Producto::tipos(), $menus->keyBy('tipo')->toArray()); @endphp
+    <div class="fixed inset-0 z-50 flex items-center justify-center"
+         style="background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);">
+        <div class="w-full max-w-sm rounded-2xl p-6"
+             style="background: var(--vd-surface-2); border: 1px solid var(--vd-bdr);
+                    box-shadow: 0 24px 60px rgba(0,0,0,0.4);">
+            <h3 class="font-condensed font-bold text-lg mb-4" style="color: var(--vd-text);">Nuevo menú</h3>
+            @if(count($tiposLibres) > 0)
+            <div class="mb-4">
+                <label class="label">Tipo de menú</label>
+                <select wire:model="nuevoMenuTipo" class="input">
+                    <option value="">— Seleccioná —</option>
+                    @foreach($tiposLibres as $slug => $label)
+                        <option value="{{ $slug }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('nuevoMenuTipo') <p class="text-xs mt-2" style="color:#fca5a5;">{{ $message }}</p> @enderror
+            </div>
+            <div class="flex justify-end gap-3">
+                <button wire:click="cancelarCrearMenu" class="btn-secondary">Cancelar</button>
+                <button wire:click="crearMenu" class="btn-primary">Crear menú</button>
+            </div>
+            @else
+            <p class="text-sm mb-5" style="color: var(--vd-muted);">Todos los tipos de menú ya existen. Eliminá uno antes de crear otro.</p>
+            <div class="flex justify-end">
+                <button wire:click="cancelarCrearMenu" class="btn-secondary">Cerrar</button>
+            </div>
+            @endif
+        </div>
+    </div>
+    @endif
+
+    {{-- Delete menu modal --}}
+    @if($deletingMenuId)
+    @php $menuAEliminar = $menus->firstWhere('id', $deletingMenuId); @endphp
+    <div class="fixed inset-0 z-50 flex items-center justify-center"
+         style="background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);">
+        <div class="w-full max-w-sm rounded-2xl p-6"
+             style="background: var(--vd-surface-2); border: 1px solid rgba(220,68,68,0.35);
+                    box-shadow: 0 24px 60px rgba(0,0,0,0.4);">
+            <h3 class="font-condensed font-bold text-lg mb-2" style="color: var(--vd-text);">¿Eliminar menú?</h3>
+            <p class="text-sm mb-1" style="color: var(--vd-muted);">
+                Se eliminará <strong style="color: var(--vd-text);">{{ $menuAEliminar?->tipoLabel() }}</strong>
+                y todos sus platos ({{ $menuAEliminar?->platos->count() }}).
+            </p>
+            <p class="text-xs mb-6" style="color: var(--vd-muted-2);">Esta acción no se puede deshacer.</p>
+            <div class="flex justify-end gap-3">
+                <button wire:click="cancelarEliminarMenu" class="btn-secondary">Cancelar</button>
+                <button wire:click="eliminarMenu" class="btn-danger">Eliminar</button>
+            </div>
+        </div>
+    </div>
+    @endif
 
     {{-- Delete dish modal --}}
     @if($deletingPlatoId)
@@ -329,7 +478,7 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
     @endphp
 
     <div class="card p-0 overflow-visible"
-         x-data="{ open: {{ $loop->first ? 'true' : 'false' }} }"
+         x-data="{ open: false }"
          style="border-color: {{ $colorAccent }};">
 
         {{-- Card header --}}
@@ -356,6 +505,17 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
                         <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
                     </svg>
                     Descripción
+                </button>
+                <button @click.stop="$wire.confirmarEliminarMenu({{ $menu->id }})"
+                        class="btn-secondary text-xs px-2.5 py-1.5"
+                        style="color: #fca5a5;"
+                        onmouseover="this.style.background='rgba(220,68,68,0.12)'"
+                        onmouseout="this.style.background=''"
+                        title="Eliminar menú">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                        <path d="M10 11v6m4-6v6M9 6V4h6v2"/>
+                    </svg>
                 </button>
                 <svg class="w-4 h-4 transition-transform duration-200" :class="open ? 'rotate-180' : ''"
                      fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
@@ -518,7 +678,7 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
         <button wire:click="sincronizarMenusZonas"
                 wire:loading.attr="disabled"
                 wire:target="sincronizarMenusZonas"
-                wire:confirm="Esto sobreescribe los menus_semanales de todas las zonas con los platos actuales. Continuar?"
+                wire:confirm="Esto sobreescribe los menus_semanales de las zonas seleccionadas con los platos actuales. Continuar?"
                 class="btn-primary flex-shrink-0 ml-4 flex items-center gap-2"
                 style="white-space: nowrap;">
             <svg wire:loading.remove wire:target="sincronizarMenusZonas"
@@ -595,7 +755,26 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
             </tbody>
         </table>
 
-        <div class="px-6 py-4 flex justify-end" style="border-top: 1px solid var(--vd-bdr-soft);">
+        <div class="px-6 py-4 flex items-center justify-between gap-4"
+             style="border-top: 1px solid var(--vd-bdr-soft);">
+            @if(auth()->user()->isAdmin())
+            <button wire:click="sincronizarPreciosZonas"
+                    wire:loading.attr="disabled"
+                    wire:target="sincronizarPreciosZonas"
+                    wire:confirm="Esto actualiza los precios dentro de menus_semanales en las zonas seleccionadas. Continuar?"
+                    class="flex items-center gap-2 py-2 px-4 rounded-lg text-sm font-semibold transition-all"
+                    style="background: rgba(234,179,8,0.10); color: #facc15; border: 1px solid rgba(234,179,8,0.3);">
+                <svg wire:loading.remove wire:target="sincronizarPreciosZonas"
+                     width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
+                </svg>
+                <span wire:loading.remove wire:target="sincronizarPreciosZonas">Guardar precios en Zonas</span>
+                <span wire:loading wire:target="sincronizarPreciosZonas">Sincronizando…</span>
+            </button>
+            @else
+            <span></span>
+            @endif
             <button wire:click="guardarPrecios" class="btn-primary px-8"
                     wire:loading.attr="disabled" wire:target="guardarPrecios">
                 <span wire:loading.remove wire:target="guardarPrecios">Guardar precios</span>

@@ -32,14 +32,14 @@ class Setting extends Model
             'app_nombre'               => 'Verdeo',
             'timezone'                 => 'America/Argentina/Buenos_Aires',
             // Chatbot IA (WhatsApp)
-            'chatbot_ia_proveedor'     => 'ollama',
-            'chatbot_ia_modelo'        => 'mistral',
+            'chatbot_ia_proveedor'     => 'claude',
+            'chatbot_ia_modelo'        => 'claude-haiku-4-5-20251001',
             'chatbot_ia_api_key'       => '',
             'chatbot_ia_prompt'        => 'Sos un asistente de Verdeo, una empresa de comida saludable. Respondé preguntas sobre pedidos, menús y entregas de forma amigable y concisa. No inventes información.',
             'chatbot_ia_temperatura'   => '0.7',
             // Asistente interno (panel)
-            'asistente_ia_proveedor'   => 'ollama',
-            'asistente_ia_modelo'      => 'mistral',
+            'asistente_ia_proveedor'   => 'claude',
+            'asistente_ia_modelo'      => 'claude-haiku-4-5-20251001',
             'asistente_ia_api_key'     => '',
             'asistente_ia_temperatura' => '0.5',
             // WhatsApp

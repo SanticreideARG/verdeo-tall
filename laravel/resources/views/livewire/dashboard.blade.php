@@ -13,13 +13,12 @@ new #[Layout('layouts.app', ['title' => 'Dashboard'])] class extends Component {
     public int   $totalConversaciones   = 0;
     public int   $conversacionesHoy     = 0;
     public int   $mensajesEnCola        = 0;
-    public int   $totalClientes         = 0;
     public int   $ordenesPendientes     = 0;
     public int   $ordenesHoy            = 0;
-    public float $ingresosHoy           = 0;
     public array $porZona               = [];
     public array $ventasPorZona         = [];
     public array $ultimasConversaciones = [];
+    public array $calendarioSemanal     = [];
 
     public function mount(): void
     {
@@ -34,11 +33,25 @@ new #[Layout('layouts.app', ['title' => 'Dashboard'])] class extends Component {
 
         $this->totalConversaciones = Conversacion::activas()->count();
         $this->conversacionesHoy   = Conversacion::hoy()->count();
-        $this->totalClientes       = User::where('role', 'cliente')->count();
         $this->ordenesPendientes   = Orden::where('estado', 'pendiente')->count();
         $this->ordenesHoy          = Orden::whereDate('created_at', today())->count();
-        $this->ingresosHoy         = (float) Orden::where('estado', 'entregada')
-                                        ->whereDate('created_at', today())->sum('total');
+
+        $weekStart = now()->startOfWeek(\Carbon\Carbon::MONDAY);
+        $ordenesXdia = Orden::selectRaw('DATE(created_at) as dia, count(*) as total')
+            ->whereBetween('created_at', [$weekStart->copy()->startOfDay(), $weekStart->copy()->addDays(6)->endOfDay()])
+            ->groupBy('dia')
+            ->pluck('total', 'dia');
+        $this->calendarioSemanal = collect(range(0, 6))->map(function ($offset) use ($weekStart, $ordenesXdia) {
+            $d = $weekStart->copy()->addDays($offset);
+            return [
+                'fecha'   => $d->toDateString(),
+                'dia'     => mb_strtoupper(substr($d->locale('es')->isoFormat('ddd'), 0, 3)),
+                'numero'  => (int) $d->format('j'),
+                'ordenes' => (int) ($ordenesXdia->get($d->toDateString(), 0)),
+                'hoy'     => $d->isToday(),
+                'pasado'  => $d->isPast() && !$d->isToday(),
+            ];
+        })->all();
 
         try {
             $this->mensajesEnCola = Redis::llen('queues:default') + Redis::llen('queues:whatsapp');
@@ -90,362 +103,204 @@ new #[Layout('layouts.app', ['title' => 'Dashboard'])] class extends Component {
 
 }; ?>
 
-<div>
+@push('styles')
+<style>
+/* ── Dashboard responsive layout ─────────────────────────────── */
 
-    {{-- Greeting --}}
-    <div class="flex items-start justify-between mb-8 flex-wrap gap-4">
+/* 3-col body grid */
+.vd-db-body {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+
+/* Calendario: 7 columnas horizontales */
+.vd-db-week {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+}
+
+/* Split screen (~2 ventanas lado a lado): ≤1150 px */
+@media (max-width: 1150px) {
+    .vd-db-body {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    /* Tarjeta Zonas ocupa ancho completo */
+    .vd-db-zones {
+        grid-column: 1 / -1;
+    }
+    /* Dentro de Zonas: Zonas activas + Sistema en 2 columnas */
+    .vd-db-zones-inner {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        align-items: start;
+    }
+    .vd-db-zones-divider {
+        display: none;  /* ocultar el hr vertical entre secciones */
+    }
+}
+
+/* Pantalla estrecha (<768 px) */
+@media (max-width: 768px) {
+    .vd-db-body {
+        grid-template-columns: 1fr;
+    }
+    .vd-db-zones {
+        grid-column: auto;
+    }
+    .vd-db-zones-inner {
+        display: block;
+    }
+    .vd-db-zones-sistema {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid var(--vd-bdr-soft);
+    }
+}
+
+/* Header: comprimir pills en pantalla media */
+@media (max-width: 900px) {
+    .vd-db-header-right {
+        gap: 6px;
+    }
+}
+
+/* Ventas 30d: 4 cols en pantalla ancha, 2 cols en split/narrow */
+@media (max-width: 900px) {
+    .vd-db-ventas-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+</style>
+@endpush
+
+<div class="space-y-4">
+
+    {{-- ── Header compacto ── --}}
+    <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-            <h2 class="font-condensed font-bold text-2xl" style="color: var(--vd-text); letter-spacing: 0.5px;">
-                Buenos días, {{ auth()->user()->name }} 🌿
+            <h2 class="font-condensed font-bold text-xl leading-tight" style="color: var(--vd-text);">
+                Hola, {{ auth()->user()->name }}
             </h2>
-            <p class="text-sm mt-1" style="color: var(--vd-muted);">
-                Resumen de operaciones · {{ now()->translatedFormat('j \d\e F, Y') }}
-            </p>
+            <p style="font-size: 11px; color: var(--vd-muted);">{{ now()->translatedFormat('l j \d\e F, Y') }}</p>
         </div>
-        <div class="flex gap-3">
-            <a href="{{ route('conversaciones') }}" wire:navigate class="btn-secondary text-xs px-4">Ver conversaciones</a>
-            <a href="{{ route('ordenes') }}" wire:navigate class="btn-primary text-xs px-4">+ Nueva orden</a>
-        </div>
-    </div>
-
-    {{-- Quick actions --}}
-    <div class="grid grid-cols-3 gap-3 mb-6">
-        <a href="{{ route('ordenes') }}" wire:navigate
-           class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
-           style="background: rgba(78,158,90,0.1); border: 1px solid rgba(78,158,90,0.25);"
-           onmouseover="this.style.background='rgba(78,158,90,0.18)'" onmouseout="this.style.background='rgba(78,158,90,0.1)'">
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                 style="background: rgba(78,158,90,0.2);">
-                <svg width="16" height="16" fill="none" stroke="#4e9e5a" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+        <div class="vd-db-header-right flex flex-wrap items-center gap-2">
+            {{-- Stat pills --}}
+            <a href="{{ route('conversaciones') }}" wire:navigate
+               class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+               style="background: var(--vd-bg-2); border: 1px solid var(--vd-bdr); color: var(--vd-text-soft); text-decoration: none;"
+               onmouseover="this.style.borderColor='rgba(78,158,90,0.4)'" onmouseout="this.style.borderColor='var(--vd-bdr)'">
+                <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
                 </svg>
-            </div>
-            <div>
-                <p class="text-sm font-semibold" style="color: #4e9e5a;">Nueva orden</p>
-                <p class="text-xs" style="color: var(--vd-muted);">Registrar pedido</p>
-            </div>
-        </a>
-        <a href="{{ route('conversaciones') }}?categoria=pendiente" wire:navigate
-           class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
-           style="background: rgba(200,160,48,0.08); border: 1px solid rgba(200,160,48,0.2);"
-           onmouseover="this.style.background='rgba(200,160,48,0.15)'" onmouseout="this.style.background='rgba(200,160,48,0.08)'">
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                 style="background: rgba(200,160,48,0.15);">
-                <svg width="16" height="16" fill="none" stroke="#c8a030" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/>
-                </svg>
-            </div>
-            <div>
-                <p class="text-sm font-semibold" style="color: #c8a030;">Pendientes</p>
-                <p class="text-xs" style="color: var(--vd-muted);">{{ $ordenesPendientes }} con pedido activo</p>
-            </div>
-        </a>
-        <a href="{{ route('estadisticas') }}" wire:navigate
-           class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
-           style="background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.2);"
-           onmouseover="this.style.background='rgba(96,165,250,0.15)'" onmouseout="this.style.background='rgba(96,165,250,0.08)'">
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                 style="background: rgba(96,165,250,0.15);">
-                <svg width="16" height="16" fill="none" stroke="#60a5fa" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/>
-                </svg>
-            </div>
-            <div>
-                <p class="text-sm font-semibold" style="color: #60a5fa;">Estadísticas</p>
-                <p class="text-xs" style="color: var(--vd-muted);">Ver métricas</p>
-            </div>
-        </a>
-    </div>
-
-    {{-- Stat cards --}}
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-
-        <a href="{{ route('conversaciones') }}" wire:navigate class="stat-card block"
-           style="transition: border-color .2s, box-shadow .2s; cursor: pointer;"
-           onmouseover="this.style.borderColor='rgba(78,158,90,0.4)'; this.style.boxShadow='0 8px 28px rgba(0,0,0,0.35)'"
-           onmouseout="this.style.borderColor=''; this.style.boxShadow=''">
-            <div class="flex items-start justify-between mb-3">
-                <span class="stat-label">Chats hoy</span>
-                <div class="stat-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="stat-value">{{ $conversacionesHoy }}</div>
-            <div class="text-xs mt-2" style="color: var(--vd-muted);">conversaciones iniciadas</div>
-        </a>
-
-        <a href="{{ route('conversaciones') }}" wire:navigate class="stat-card block"
-           style="transition: border-color .2s, box-shadow .2s; cursor: pointer;"
-           onmouseover="this.style.borderColor='rgba(78,158,90,0.4)'; this.style.boxShadow='0 8px 28px rgba(0,0,0,0.35)'"
-           onmouseout="this.style.borderColor=''; this.style.boxShadow=''">
-            <div class="flex items-start justify-between mb-3">
-                <span class="stat-label">Total activas</span>
-                <div class="stat-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="stat-value" style="color: var(--vd-green-lt);">{{ $totalConversaciones }}</div>
-            <div class="flex items-center gap-1 mt-2">
-                <span class="trend-up">▲ activo</span>
-                <span class="text-xs" style="color: var(--vd-muted);">en curso</span>
-            </div>
-        </a>
-
-        <a href="{{ route('clientes.crm') }}" wire:navigate class="stat-card block"
-           style="transition: border-color .2s, box-shadow .2s; cursor: pointer;"
-           onmouseover="this.style.borderColor='rgba(78,158,90,0.4)'; this.style.boxShadow='0 8px 28px rgba(0,0,0,0.35)'"
-           onmouseout="this.style.borderColor=''; this.style.boxShadow=''">
-            <div class="flex items-start justify-between mb-3">
-                <span class="stat-label">Clientes</span>
-                <div class="stat-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="stat-value">{{ $totalClientes }}</div>
-            <div class="text-xs mt-2" style="color: var(--vd-muted);">registrados en sistema</div>
-        </a>
-
-        <a href="{{ route('ordenes') }}" wire:navigate class="stat-card block"
-           style="transition: border-color .2s, box-shadow .2s; cursor: pointer;"
-           onmouseover="this.style.borderColor='{{ $ordenesPendientes > 0 ? 'rgba(200,160,48,0.5)' : 'rgba(78,158,90,0.4)' }}'; this.style.boxShadow='0 8px 28px rgba(0,0,0,0.35)'"
-           onmouseout="this.style.borderColor=''; this.style.boxShadow=''">
-            <div class="flex items-start justify-between mb-3">
-                <span class="stat-label">Órdenes pend.</span>
-                <div class="stat-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M6 2l1 4h11l1-4M5 6l2 14h10l2-14"/><circle cx="9" cy="20" r="1.5"/><circle cx="15" cy="20" r="1.5"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="stat-value" style="{{ $ordenesPendientes > 0 ? 'color: var(--vd-gold)' : '' }}">
-                {{ $ordenesPendientes }}
-            </div>
-            <div class="flex items-center gap-1 mt-2">
-                @if($ordenesPendientes > 0)
-                    <span class="trend-down">● pendientes</span>
-                @else
-                    <span class="trend-up">✓ al día</span>
-                @endif
-            </div>
-        </a>
-
-    </div>
-
-    {{-- Resumen de hoy --}}
-    <div class="grid grid-cols-3 gap-4 mb-6">
-        <div class="card py-4">
-            <p class="text-xs font-condensed font-bold uppercase tracking-widest mb-3"
-               style="color: var(--vd-muted-2); letter-spacing: 1.5px;">Órdenes hoy</p>
-            <p class="font-condensed font-bold text-3xl" style="color: var(--vd-text);">{{ $ordenesHoy }}</p>
-            <p class="text-xs mt-1" style="color: var(--vd-muted);">pedidos ingresados</p>
-        </div>
-        <div class="card py-4">
-            <p class="text-xs font-condensed font-bold uppercase tracking-widest mb-3"
-               style="color: var(--vd-muted-2); letter-spacing: 1.5px;">Chats hoy</p>
-            <p class="font-condensed font-bold text-3xl" style="color: var(--vd-text);">{{ $conversacionesHoy }}</p>
-            <p class="text-xs mt-1" style="color: var(--vd-muted);">conversaciones nuevas</p>
-        </div>
-        <div class="card py-4">
-            <p class="text-xs font-condensed font-bold uppercase tracking-widest mb-3"
-               style="color: var(--vd-muted-2); letter-spacing: 1.5px;">Ingresos hoy</p>
-            <p class="font-condensed font-bold text-3xl" style="color: #4e9e5a;">
-                ${{ $ingresosHoy > 0 ? number_format($ingresosHoy, 0, ',', '.') : '—' }}
-            </p>
-            <p class="text-xs mt-1" style="color: var(--vd-muted);">de órdenes entregadas</p>
+                <span style="color: var(--vd-text);">{{ $conversacionesHoy }}</span>
+                <span style="color: var(--vd-muted);">chats hoy</span>
+            </a>
+            <a href="{{ route('conversaciones') }}" wire:navigate
+               class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+               style="background: rgba(78,158,90,0.08); border: 1px solid rgba(78,158,90,0.2); color: #4e9e5a; text-decoration: none;"
+               onmouseover="this.style.background='rgba(78,158,90,0.15)'" onmouseout="this.style.background='rgba(78,158,90,0.08)'">
+                <span class="w-1.5 h-1.5 rounded-full animate-pulse inline-block" style="background:#4e9e5a;"></span>
+                <span>{{ $totalConversaciones }}</span>
+                <span style="color: rgba(78,158,90,0.7);">activas</span>
+            </a>
+            <a href="{{ route('ordenes') }}" wire:navigate
+               class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+               style="{{ $ordenesPendientes > 0
+                   ? 'background: rgba(200,160,48,0.1); border: 1px solid rgba(200,160,48,0.3); color: #c8a030;'
+                   : 'background: var(--vd-bg-2); border: 1px solid var(--vd-bdr); color: var(--vd-text-soft);' }}
+                   text-decoration: none;"
+               onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+                <span>{{ $ordenesPendientes }}</span>
+                <span>pend.</span>
+            </a>
+            {{-- Acciones --}}
+            <a href="{{ route('conversaciones') }}" wire:navigate class="btn-secondary text-xs px-3 py-1.5">Chats</a>
+            <a href="{{ route('ordenes') }}" wire:navigate class="btn-primary text-xs px-3 py-1.5">+ Orden</a>
         </div>
     </div>
 
-    {{-- Zones + Queue --}}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    {{-- ── Body: 3 columnas → 2 en split-screen → 1 en mobile ── --}}
+    <div class="vd-db-body">
 
-        {{-- Zones (2/3 width) --}}
-        <div class="md:col-span-2 card">
-            <div class="flex items-end justify-between mb-5" style="border-bottom: 1px solid var(--vd-bdr-soft); padding-bottom: 14px;">
-                <div>
-                    <h3 class="font-condensed font-bold text-lg" style="color: var(--vd-text); letter-spacing: 0.5px;">Zonas activas</h3>
-                    <p class="text-xs mt-0.5" style="color: var(--vd-muted);">Conversaciones por cobertura WhatsApp</p>
+        {{-- 1. Calendario semanal --}}
+        <div class="card py-3 px-4">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-condensed font-bold uppercase tracking-widest"
+                      style="color: var(--vd-muted); letter-spacing: 1px;">Esta semana</span>
+                <span class="text-xs" style="color: var(--vd-muted-2);">
+                    {{ array_sum(array_column($calendarioSemanal, 'ordenes')) }} total
+                    · <span style="color: var(--vd-green-lt);">{{ $ordenesHoy }} hoy</span>
+                </span>
+            </div>
+            <div class="vd-db-week">
+                @foreach($calendarioSemanal as $dia)
+                <div style="display:flex; flex-direction:column; align-items:center; padding:5px 2px; border-radius:8px; text-align:center;
+                            {{ $dia['hoy'] ? 'background:rgba(78,158,90,0.15); border:1px solid rgba(78,158,90,0.35);' : '' }}">
+                    <span style="font-size:9px; font-weight:700; line-height:1.2;
+                                 color:{{ $dia['hoy'] ? '#4e9e5a' : 'var(--vd-muted-2)' }};">
+                        {{ substr($dia['dia'], 0, 1) }}
+                    </span>
+                    <span style="font-size:13px; font-weight:700; line-height:1.3;
+                                 color:{{ $dia['hoy'] ? 'var(--vd-text)' : ($dia['pasado'] ? 'var(--vd-muted-2)' : 'var(--vd-text-soft)') }};">
+                        {{ $dia['numero'] }}
+                    </span>
+                    @if($dia['ordenes'] > 0)
+                    <span style="font-size:10px; font-weight:700; color:#4e9e5a; line-height:1.3;">{{ $dia['ordenes'] }}</span>
+                    @else
+                    <span style="display:inline-block; width:4px; height:4px; border-radius:50%; background:var(--vd-bdr); margin-top:2px;"></span>
+                    @endif
                 </div>
-                <a href="{{ route('zonas') }}" wire:navigate
-                   class="text-xs font-condensed font-bold tracking-wide uppercase transition-colors"
-                   style="color: var(--vd-green-lt);"
-                   onmouseover="this.style.color='var(--vd-text)'" onmouseout="this.style.color='var(--vd-green-lt)'">
-                    Ver todas →
-                </a>
+                @endforeach
             </div>
-            <div class="flex flex-col gap-3">
-                @forelse($porZona as $z)
-                <a href="{{ route('zonas') }}" wire:navigate class="zone-row"
-                   style="transition: background .15s, border-color .15s; cursor: pointer; text-decoration: none;"
-                   onmouseover="this.style.background='rgba(58,125,68,0.06)'; this.style.borderRadius='12px';"
-                   onmouseout="this.style.background=''; this.style.borderRadius='';">
-                    <div class="flex items-center gap-3" style="color: var(--vd-text); font-size: 14px;">
-                        <div class="zone-dot"></div>
-                        <div>
-                            <span class="font-semibold">{{ $z['zona'] }}</span>
-                            <span class="ml-2 font-mono text-xs" style="color: var(--vd-muted);">+{{ $z['numero'] }}</span>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <span class="stat-value text-base">{{ $z['activas'] }}</span>
-                        <span class="badge-green">Activo</span>
-                    </div>
-                </a>
-                @empty
-                <p class="text-sm text-center py-6" style="color: var(--vd-muted);">Sin zonas configuradas.</p>
-                @endforelse
-            </div>
+            <a href="{{ route('estadisticas') }}" wire:navigate
+               class="flex items-center justify-center text-xs transition-colors"
+               style="margin-top:8px; padding-top:8px; border-top:1px solid var(--vd-bdr-soft); color:var(--vd-muted-2); text-decoration:none;"
+               onmouseover="this.style.color='var(--vd-green-lt)'" onmouseout="this.style.color='var(--vd-muted-2)'">
+                Estadísticas →
+            </a>
         </div>
 
-        {{-- System status (1/3 width) --}}
-        <div class="card flex flex-col gap-4">
-            <div style="border-bottom: 1px solid var(--vd-bdr-soft); padding-bottom: 14px;">
-                <h3 class="font-condensed font-bold text-lg" style="color: var(--vd-text); letter-spacing: 0.5px;">Sistema</h3>
-                <p class="text-xs mt-0.5" style="color: var(--vd-muted);">Estado en tiempo real</p>
-            </div>
-
-            <div class="flex flex-col gap-3">
-                <div class="zone-row">
-                    <span class="text-sm font-medium" style="color: var(--vd-text);">Cola Horizon</span>
-                    <div class="flex items-center gap-2">
-                        <span class="font-condensed font-bold text-base" style="color: var(--vd-text);">{{ $mensajesEnCola }}</span>
-                        @if($mensajesEnCola === 0)
-                            <span class="badge-green">OK</span>
-                        @else
-                            <span class="badge-yellow">Activa</span>
-                        @endif
-                    </div>
+        {{-- 2. Widget de chats --}}
+        <div class="card py-3 px-4">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full animate-pulse inline-block" style="background:#4e9e5a;"></span>
+                    <span class="text-xs font-condensed font-bold uppercase tracking-widest"
+                          style="color:var(--vd-muted); letter-spacing:1px;">Conversaciones</span>
                 </div>
-
-                <div class="zone-row">
-                    <span class="text-sm font-medium" style="color: var(--vd-text);">Evolution API</span>
-                    <span class="badge-green">Activo</span>
-                </div>
-
-                <div class="zone-row">
-                    <span class="text-sm font-medium" style="color: var(--vd-text);">n8n Workflows</span>
-                    <span class="badge-green">Activo</span>
-                </div>
-
-                <div class="zone-row">
-                    <span class="text-sm font-medium" style="color: var(--vd-text);">Ollama / IA</span>
-                    <span class="badge-blue">Listo</span>
-                </div>
-            </div>
-
-            <div class="mt-auto flex gap-2">
-                <a href="/horizon" target="_blank" class="btn-secondary text-xs flex-1 justify-center">Horizon</a>
-                <a href="{{ route('n8n') }}" target="_blank" class="btn-secondary text-xs flex-1 justify-center">n8n</a>
-            </div>
-        </div>
-
-    </div>
-
-    {{-- Ventas por zona + Últimas conversaciones --}}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-
-        {{-- Ventas por zona (2/3) --}}
-        <div class="md:col-span-2 card">
-            <div class="flex items-end justify-between mb-4"
-                 style="border-bottom: 1px solid var(--vd-bdr-soft); padding-bottom: 12px;">
-                <div>
-                    <h3 class="font-condensed font-bold text-lg" style="color: var(--vd-text);">Ventas por zona</h3>
-                    <p class="text-xs mt-0.5" style="color: var(--vd-muted);">Últimos 30 días</p>
-                </div>
-                <a href="{{ route('estadisticas') }}" wire:navigate
-                   class="text-xs font-condensed font-bold tracking-wide uppercase transition-colors"
-                   style="color: var(--vd-green-lt);"
-                   onmouseover="this.style.color='var(--vd-text)'" onmouseout="this.style.color='var(--vd-green-lt)'">
-                    Ver estadísticas →
-                </a>
-            </div>
-            <table class="w-full text-sm">
-                <thead>
-                    <tr>
-                        <th class="text-left pb-2 text-xs font-condensed font-bold uppercase tracking-wide"
-                            style="color: var(--vd-muted-2);">Zona</th>
-                        <th class="text-right pb-2 text-xs font-condensed font-bold uppercase tracking-wide"
-                            style="color: var(--vd-muted-2);">Órdenes</th>
-                        <th class="text-right pb-2 text-xs font-condensed font-bold uppercase tracking-wide"
-                            style="color: var(--vd-muted-2);">Ingresos</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y" style="border-color: var(--vd-bdr-soft);">
-                    @foreach($ventasPorZona as $vz)
-                    <tr>
-                        <td class="py-2.5">
-                            <div class="flex items-center gap-2">
-                                <div class="w-2 h-2 rounded-full" style="background: #4e9e5a; opacity: {{ $vz['ordenes'] > 0 ? '1' : '0.25' }};"></div>
-                                <span style="color: var(--vd-text);">{{ $vz['label'] }}</span>
-                            </div>
-                        </td>
-                        <td class="py-2.5 text-right font-mono font-semibold" style="color: var(--vd-text);">
-                            {{ $vz['ordenes'] ?: '—' }}
-                        </td>
-                        <td class="py-2.5 text-right font-mono font-semibold"
-                            style="color: {{ $vz['ingresos'] > 0 ? '#4e9e5a' : 'var(--vd-muted-2)' }};">
-                            {{ $vz['ingresos'] > 0 ? '$'.number_format($vz['ingresos'],0,',','.') : '—' }}
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-                <tfoot style="border-top: 1px solid var(--vd-bdr);">
-                    <tr>
-                        <td class="pt-3 text-xs font-semibold" style="color: var(--vd-muted);">Total</td>
-                        <td class="pt-3 text-right font-mono font-bold text-sm" style="color: var(--vd-text);">
-                            {{ array_sum(array_column($ventasPorZona, 'ordenes')) ?: '—' }}
-                        </td>
-                        <td class="pt-3 text-right font-mono font-bold text-sm" style="color: #4e9e5a;">
-                            @php $totalIngresos = array_sum(array_column($ventasPorZona, 'ingresos')); @endphp
-                            {{ $totalIngresos > 0 ? '$'.number_format($totalIngresos,0,',','.') : '—' }}
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-
-        {{-- Últimas conversaciones (1/3) --}}
-        <div class="card">
-            <div class="flex items-end justify-between mb-4"
-                 style="border-bottom: 1px solid var(--vd-bdr-soft); padding-bottom: 12px;">
-                <h3 class="font-condensed font-bold text-lg" style="color: var(--vd-text);">Recientes</h3>
                 <a href="{{ route('conversaciones') }}" wire:navigate
-                   class="text-xs font-condensed font-bold tracking-wide uppercase transition-colors"
-                   style="color: var(--vd-green-lt);"
-                   onmouseover="this.style.color='var(--vd-text)'" onmouseout="this.style.color='var(--vd-green-lt)'">
+                   class="text-xs transition-colors" style="color:var(--vd-muted-2); text-decoration:none;"
+                   onmouseover="this.style.color='var(--vd-green-lt)'" onmouseout="this.style.color='var(--vd-muted-2)'">
                     Ver todas →
                 </a>
             </div>
             @if(empty($ultimasConversaciones))
-                <p class="text-sm text-center py-6" style="color: var(--vd-muted);">Sin conversaciones aún.</p>
+                <p class="text-xs text-center py-4" style="color:var(--vd-muted);">Sin conversaciones.</p>
             @else
-            <div class="space-y-3">
-                @foreach($ultimasConversaciones as $conv)
+            <div>
+                @foreach(array_slice($ultimasConversaciones, 0, 5) as $conv)
                 <a href="{{ route('conversaciones.ver', $conv['id']) }}" wire:navigate
-                   class="flex items-start gap-2.5 group"
-                   style="text-decoration: none;">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5"
-                         style="background: rgba(58,125,68,0.15); color: #4e9e5a; border: 1px solid rgba(78,158,90,0.25);">
+                   class="flex items-center gap-2 rounded-lg transition-colors"
+                   style="padding:5px 4px; text-decoration:none;"
+                   onmouseover="this.style.background='var(--vd-bg-2)'" onmouseout="this.style.background='transparent'">
+                    <div class="w-6 h-6 rounded-full flex items-center justify-center font-bold flex-shrink-0"
+                         style="font-size:10px; background:rgba(58,125,68,0.15); color:#4e9e5a;">
                         {{ strtoupper(substr($conv['nombre'], 0, 1)) }}
                     </div>
                     <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <span class="text-sm font-semibold truncate group-hover:underline"
-                                  style="color: var(--vd-text);">{{ $conv['nombre'] }}</span>
-                            <span class="{{ match($conv['estado']) {
-                                'abierta'   => 'badge-green',
-                                'esperando' => 'badge-yellow',
-                                default     => 'badge-gray',
-                            } }}" style="font-size: 9px; padding: 1px 6px;">{{ $conv['estado'] }}</span>
-                        </div>
-                        <p class="text-xs truncate mt-0.5" style="color: var(--vd-muted);">
-                            {{ $conv['zona'] }} · {{ $conv['hace'] }}
+                        <p class="text-xs font-semibold truncate" style="color:var(--vd-text);">{{ $conv['nombre'] }}</p>
+                        <p class="truncate" style="font-size:10px; color:var(--vd-muted);">
+                            {{ \Illuminate\Support\Str::limit($conv['msg'] ?? '…', 34) }}
                         </p>
+                    </div>
+                    <div class="flex-shrink-0 flex flex-col items-end" style="gap:2px;">
+                        <div class="w-1.5 h-1.5 rounded-full"
+                             style="background:{{ match($conv['estado']) { 'abierta' => '#4e9e5a', 'esperando' => '#c8a030', default => 'var(--vd-muted-2)' } }};"></div>
+                        <span style="font-size:9px; color:var(--vd-muted-2); white-space:nowrap;">{{ $conv['hace'] }}</span>
                     </div>
                 </a>
                 @endforeach
@@ -453,6 +308,110 @@ new #[Layout('layouts.app', ['title' => 'Dashboard'])] class extends Component {
             @endif
         </div>
 
+        {{-- 3. Zonas + Sistema --}}
+        <div class="card py-3 px-4 vd-db-zones">
+            <div class="vd-db-zones-inner">
+                {{-- Zonas activas --}}
+                <div>
+                    <span class="text-xs font-condensed font-bold uppercase tracking-widest"
+                          style="color:var(--vd-muted); letter-spacing:1px;">Zonas activas</span>
+                    <div style="margin-top:8px;">
+                        @forelse($porZona as $z)
+                        <div class="flex items-center justify-between" style="padding:3px 0;">
+                            <div class="flex items-center gap-2">
+                                <div class="zone-dot"></div>
+                                <span class="text-xs font-medium" style="color:var(--vd-text-soft);">{{ $z['zona'] }}</span>
+                                <span class="font-mono" style="font-size:10px; color:var(--vd-muted-2);">·{{ $z['numero'] }}</span>
+                            </div>
+                            <span class="font-condensed font-bold text-sm"
+                                  style="color:{{ $z['activas'] > 0 ? 'var(--vd-green-lt)' : 'var(--vd-muted-2)' }};">
+                                {{ $z['activas'] }}
+                            </span>
+                        </div>
+                        @empty
+                        <p class="text-xs" style="color:var(--vd-muted);">Sin zonas.</p>
+                        @endforelse
+                    </div>
+                </div>
+
+                {{-- Sistema --}}
+                <div class="vd-db-zones-sistema" style="border-top:1px solid var(--vd-bdr-soft); margin-top:10px; padding-top:8px;">
+                    <span class="text-xs font-condensed font-bold uppercase tracking-widest"
+                          style="color:var(--vd-muted); letter-spacing:1px;">Sistema</span>
+                    <div class="flex flex-wrap" style="gap:6px; margin-top:6px;">
+                        <span class="text-xs px-2 py-0.5 rounded-full"
+                              style="{{ $mensajesEnCola === 0
+                                  ? 'background:rgba(78,158,90,0.1); border:1px solid rgba(78,158,90,0.2); color:#4e9e5a;'
+                                  : 'background:rgba(200,160,48,0.1); border:1px solid rgba(200,160,48,0.3); color:#c8a030;' }}">
+                            Horizon {{ $mensajesEnCola === 0 ? '✓' : $mensajesEnCola }}
+                        </span>
+                        <span class="text-xs px-2 py-0.5 rounded-full"
+                              style="background:rgba(78,158,90,0.1); border:1px solid rgba(78,158,90,0.2); color:#4e9e5a;">
+                            Evolution ✓
+                        </span>
+                        <span class="text-xs px-2 py-0.5 rounded-full"
+                              style="background:rgba(78,158,90,0.1); border:1px solid rgba(78,158,90,0.2); color:#4e9e5a;">
+                            n8n ✓
+                        </span>
+                        <span class="text-xs px-2 py-0.5 rounded-full"
+                              style="background:rgba(96,165,250,0.08); border:1px solid rgba(96,165,250,0.2); color:#60a5fa;">
+                            Ollama ✓
+                        </span>
+                    </div>
+                    <div class="flex gap-2 mt-2">
+                        <a href="/horizon" target="_blank" class="btn-secondary text-xs flex-1 text-center py-1">Horizon</a>
+                        <a href="{{ route('n8n') }}" target="_blank" class="btn-secondary text-xs flex-1 text-center py-1">n8n</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    {{-- ── Ventas 30d — 4 cards inline ── --}}
+    <div class="card py-3 px-4">
+        <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-condensed font-bold uppercase tracking-widest"
+                  style="color: var(--vd-muted); letter-spacing: 1px;">Ventas últimos 30 días</span>
+            <a href="{{ route('estadisticas') }}" wire:navigate
+               class="text-xs transition-colors" style="color: var(--vd-muted-2); text-decoration: none;"
+               onmouseover="this.style.color='var(--vd-green-lt)'" onmouseout="this.style.color='var(--vd-muted-2)'">
+                Estadísticas →
+            </a>
+        </div>
+        <div class="vd-db-ventas-grid" style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px;">
+            @foreach($ventasPorZona as $vz)
+            <div class="rounded-xl px-3 py-2.5" style="background: var(--vd-bg-2); border: 1px solid var(--vd-bdr-soft);">
+                <div class="flex items-center gap-1.5 mb-1">
+                    <div class="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                         style="background: #4e9e5a; opacity: {{ $vz['ordenes'] > 0 ? '1' : '0.25' }};"></div>
+                    <span class="text-xs font-semibold truncate" style="color: var(--vd-text-soft);">{{ $vz['label'] }}</span>
+                </div>
+                <p class="font-condensed font-bold text-xl leading-none" style="color: var(--vd-text);">
+                    {{ $vz['ordenes'] ?: '—' }}
+                </p>
+                <p class="text-xs mt-0.5"
+                   style="color: {{ $vz['ingresos'] > 0 ? '#4e9e5a' : 'var(--vd-muted-2)' }};">
+                    {{ $vz['ingresos'] > 0 ? '$'.number_format($vz['ingresos'],0,',','.') : 'sin ingresos' }}
+                </p>
+            </div>
+            @endforeach
+        </div>
+        @php
+            $totOrd = array_sum(array_column($ventasPorZona, 'ordenes'));
+            $totIng = array_sum(array_column($ventasPorZona, 'ingresos'));
+        @endphp
+        @if($totOrd > 0)
+        <div class="flex items-center justify-between mt-2 pt-2" style="border-top: 1px solid var(--vd-bdr-soft);">
+            <span class="text-xs" style="color: var(--vd-muted);">Total</span>
+            <span class="text-xs font-mono font-semibold" style="color: var(--vd-text);">
+                {{ $totOrd }} órdenes
+                @if($totIng > 0)
+                · <span style="color: #4e9e5a;">${{ number_format($totIng, 0, ',', '.') }}</span>
+                @endif
+            </span>
+        </div>
+        @endif
     </div>
 
 </div>

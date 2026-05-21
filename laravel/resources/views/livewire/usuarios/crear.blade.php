@@ -142,7 +142,7 @@ new #[Layout('layouts.app', ['title' => 'Nuevo usuario'])] class extends Compone
                         $color = match($val) {
                             'admin'            => '#4e9e5a',
                             'responsable_zona' => '#60a5fa',
-                            'colaborador'      => '#a78bfa',
+                            'colaborador'      => '#4e9e5a',
                             'cliente'          => '#c8a030',
                         };
                     @endphp

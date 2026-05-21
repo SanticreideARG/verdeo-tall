@@ -23,7 +23,7 @@
 
             {{-- Logo --}}
             <div class="flex items-center h-16 px-5 gap-3" style="border-bottom: 1px solid var(--vd-bdr-soft);">
-                <img src="/images/verdeo-logo.png" alt="Verdeo"
+                <img src="/images/verdeo-logo.png?v=2" alt="Verdeo"
                      class="w-9 h-9 rounded-full object-cover flex-shrink-0"
                      style="filter: drop-shadow(0 2px 8px rgba(58,125,68,0.5));"
                      onerror="this.style.display='none'">

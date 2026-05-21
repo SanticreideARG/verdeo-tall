@@ -65,7 +65,7 @@ new #[Layout('layouts.app', ['title' => 'Ficha de usuario'])] class extends Comp
                     $bs = match($usuario->role) {
                         'admin'            => 'background:rgba(78,158,90,0.15);color:#4e9e5a;border:1px solid rgba(78,158,90,0.3)',
                         'responsable_zona' => 'background:rgba(96,165,250,0.15);color:#60a5fa;border:1px solid rgba(96,165,250,0.3)',
-                        'colaborador'      => 'background:rgba(167,139,250,0.15);color:#a78bfa;border:1px solid rgba(167,139,250,0.3)',
+                        'colaborador'      => 'background:rgba(78,158,90,0.15);color:#4e9e5a;border:1px solid rgba(78,158,90,0.3)',
                         'cliente'          => 'background:rgba(200,160,48,0.15);color:#c8a030;border:1px solid rgba(200,160,48,0.3)',
                         default            => 'background:rgba(128,128,128,0.15);color:var(--vd-muted)',
                     };

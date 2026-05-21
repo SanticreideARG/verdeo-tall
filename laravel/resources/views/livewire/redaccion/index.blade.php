@@ -175,19 +175,20 @@ new #[Layout('layouts.app', ['title' => 'Redacción'])] class extends Component 
                     <span class="text-xs" style="color: var(--vd-muted);">Variables:</span>
                     @foreach(['nombre' => 'Nombre', 'zona' => 'Zona', 'ultimo_pedido' => 'Último pedido'] as $varKey => $etiqueta)
                     <button type="button"
+                            x-data="{ vk: '{{ $varKey }}' }"
                             @click="
                                 const ta = $refs.textareaMsg;
-                                const v = '\x7b\x7b{{ $varKey }}\x7d\x7d';
-                                const s = ta.selectionStart; const e = ta.selectionEnd;
+                                const v = '\x7b\x7b' + vk + '\x7d\x7d';
+                                const s = ta.selectionStart; const fin = ta.selectionEnd;
                                 const cur = $wire.mensaje;
-                                $wire.set('mensaje', cur.slice(0,s) + v + cur.slice(e));
+                                $wire.set('mensaje', cur.slice(0,s) + v + cur.slice(fin));
                                 $nextTick(() => { ta.focus(); ta.setSelectionRange(s+v.length, s+v.length); });
                             "
                             class="text-xs px-2.5 py-1 rounded-full font-mono transition-all"
                             style="background: rgba(96,165,250,0.1); color: #60a5fa; border: 1px solid rgba(96,165,250,0.25);"
                             onmouseover="this.style.background='rgba(96,165,250,0.2)'"
                             onmouseout="this.style.background='rgba(96,165,250,0.1)'">
-                        {{ '{{'.$varKey.'}}' }}
+                        {{ sprintf('{{%s}}', $varKey) }}
                     </button>
                     @endforeach
                 </div>

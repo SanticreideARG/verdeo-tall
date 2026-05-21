@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verdeo — Informe Técnico v1.0</title>
+<style>
+  /* ===================== Base ===================== */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    background: #0d1f0f;
+    color: #e6efe6;
+    line-height: 1.65;
+    font-size: 15px;
+  }
+  .page {
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 56px 64px;
+  }
+
+  /* ===================== Typography ===================== */
+  h1, h2, h3, h4 { color: #ffffff; font-weight: 700; line-height: 1.25; }
+  h2 {
+    font-size: 27px;
+    margin: 0 0 18px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #4e9e5a;
+    color: #8fd49a;
+  }
+  h3 {
+    font-size: 19px;
+    margin: 28px 0 10px;
+    color: #6fc27d;
+  }
+  h4 {
+    font-size: 15px;
+    margin: 18px 0 6px;
+    color: #a9d8b0;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  p { margin: 0 0 12px; color: #cfe0d0; }
+  a { color: #6fc27d; }
+  ul, ol { margin: 0 0 14px 22px; color: #cfe0d0; }
+  li { margin-bottom: 5px; }
+  strong { color: #f0f7f0; }
+  code {
+    background: #16321a;
+    color: #9fe0aa;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 13px;
+  }
+  small { color: #8aa28c; }
+
+  /* ===================== Layout helpers ===================== */
+  .page-break { page-break-before: always; }
+  section { margin-bottom: 44px; }
+  .lead { font-size: 16.5px; color: #d8e8d9; }
+
+  /* ===================== Cover ===================== */
+  .cover {
+    min-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    background:
+      radial-gradient(circle at 30% 20%, rgba(78,158,90,0.25), transparent 55%),
+      radial-gradient(circle at 75% 80%, rgba(78,158,90,0.18), transparent 50%),
+      #0d1f0f;
+    border-bottom: 3px solid #4e9e5a;
+    padding: 80px 40px;
+  }
+  .logo-mark {
+    width: 132px;
+    height: 132px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2f7d3c, #6fc27d);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 58px;
+    margin-bottom: 30px;
+    box-shadow: 0 0 0 8px rgba(78,158,90,0.18), 0 14px 40px rgba(0,0,0,0.5);
+  }
+  .cover .brand {
+    font-size: 58px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: #ffffff;
+    margin-bottom: 4px;
+  }
+  .cover .tagline {
+    font-size: 15px;
+    color: #8fd49a;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    margin-bottom: 46px;
+  }
+  .cover .doc-title {
+    font-size: 36px;
+    color: #6fc27d;
+    font-weight: 700;
+  }
+  .cover .doc-sub {
+    font-size: 19px;
+    color: #cfe0d0;
+    margin-top: 6px;
+  }
+  .cover .doc-meta {
+    margin-top: 52px;
+    font-size: 14px;
+    color: #9bb39d;
+  }
+  .cover .doc-meta .credit {
+    color: #e6efe6;
+    font-size: 15px;
+    margin-top: 8px;
+  }
+  .version-pill {
+    display: inline-block;
+    margin-top: 22px;
+    padding: 7px 20px;
+    border: 1px solid #4e9e5a;
+    border-radius: 999px;
+    color: #8fd49a;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+  }
+
+  /* ===================== Cards & boxes ===================== */
+  .card {
+    background: #122a16;
+    border: 1px solid #234a29;
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin-bottom: 16px;
+  }
+  .card-accent { border-left: 4px solid #4e9e5a; }
+
+  .callout {
+    background: #16321a;
+    border-left: 4px solid #6fc27d;
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 16px 0;
+  }
+  .callout.warn { border-left-color: #e0a23a; background: #2a230f; }
+  .callout.warn p, .callout.warn strong { color: #f3dca6; }
+  .callout.crit { border-left-color: #d8534f; background: #2c1514; }
+  .callout.crit p, .callout.crit strong { color: #f1bdbb; }
+
+  /* ===================== Stat grid ===================== */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin: 22px 0;
+  }
+  .stat {
+    background: #122a16;
+    border: 1px solid #234a29;
+    border-radius: 10px;
+    padding: 18px 14px;
+    text-align: center;
+  }
+  .stat .num {
+    font-size: 32px;
+    font-weight: 800;
+    color: #6fc27d;
+    display: block;
+  }
+  .stat .label {
+    font-size: 12px;
+    color: #9bb39d;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* ===================== Tables ===================== */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0 20px;
+    font-size: 13.5px;
+  }
+  th {
+    background: #1c3c22;
+    color: #8fd49a;
+    text-align: left;
+    padding: 10px 12px;
+    font-weight: 600;
+    border-bottom: 2px solid #4e9e5a;
+  }
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid #234a29;
+    color: #cfe0d0;
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: #102513; }
+
+  /* ===================== Figures ===================== */
+  figure {
+    margin: 20px 0;
+    background: #0a1809;
+    border: 1px solid #234a29;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  figure img {
+    width: 100%;
+    display: block;
+    border-bottom: 1px solid #234a29;
+  }
+  figcaption {
+    padding: 10px 16px;
+    font-size: 13px;
+    color: #9bb39d;
+    font-style: italic;
+  }
+  figcaption strong { color: #8fd49a; font-style: normal; }
+
+  /* ===================== Badges ===================== */
+  .badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .b-ok    { background: #1c4a26; color: #7fd68c; }
+  .b-part  { background: #4a3f12; color: #e3c66a; }
+  .b-todo  { background: #4a1f1d; color: #e88b86; }
+  .b-crit  { background: #d8534f; color: #fff; }
+  .b-high  { background: #e0a23a; color: #21180a; }
+  .b-med   { background: #3a6f9e; color: #fff; }
+  .b-low   { background: #2f6f3c; color: #d6f3da; }
+
+  /* ===================== Timeline ===================== */
+  .timeline { border-left: 2px solid #4e9e5a; padding-left: 24px; margin-left: 8px; }
+  .tl-entry { margin-bottom: 26px; position: relative; }
+  .tl-entry::before {
+    content: "";
+    position: absolute;
+    left: -31px;
+    top: 4px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #6fc27d;
+    border: 3px solid #0d1f0f;
+  }
+  .tl-date {
+    font-size: 12px;
+    color: #8fd49a;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+  }
+  .tl-title { font-size: 17px; color: #ffffff; font-weight: 700; margin: 2px 0 6px; }
+
+  /* ===================== Misc ===================== */
+  .toc ol { list-style: none; margin-left: 0; }
+  .toc li {
+    padding: 8px 0;
+    border-bottom: 1px dashed #234a29;
+    color: #cfe0d0;
+  }
+  .toc .n { color: #6fc27d; font-weight: 700; margin-right: 12px; }
+  hr {
+    border: none;
+    border-top: 1px solid #234a29;
+    margin: 30px 0;
+  }
+  .footer {
+    text-align: center;
+    color: #6f8a72;
+    font-size: 12px;
+    margin-top: 50px;
+    padding-top: 20px;
+    border-top: 1px solid #234a29;
+  }
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  @media print {
+    body { font-size: 11.5pt; }
+    .page { padding: 28px 36px; }
+    .stat-grid { gap: 8px; }
+    figure { break-inside: avoid; }
+    .card, .callout, table { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- PORTADA                                                       -->
+<!-- ============================================================ -->
+<div class="cover">
+  <div class="logo-mark">🌿</div>
+  <div class="brand">VERDEO</div>
+  <div class="tagline">Sistema integral de gestión comercial y logística</div>
+  <div class="doc-title">Informe Técnico v1.0</div>
+  <div class="doc-sub">Cierre del Primer Sprint de Desarrollo</div>
+  <div class="version-pill">BITÁCORA DEL PRIMER LONG RUN</div>
+  <div class="doc-meta">
+    <div>Fecha de emisión: 20 de mayo de 2026</div>
+    <div class="credit">Desarrollado por <strong>Santiago Creide</strong> con Claude (Anthropic)</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- ÍNDICE                                                        -->
+<!-- ============================================================ -->
+<div class="page page-break">
+  <section class="toc">
+    <h2>Índice</h2>
+    <ol>
+      <li><span class="n">1</span> Resumen Ejecutivo</li>
+      <li><span class="n">2</span> Bitácora por Jornada</li>
+      <li><span class="n">3</span> Funcionalidades Implementadas</li>
+      <li><span class="n">4</span> Arquitectura Técnica</li>
+      <li><span class="n">5</span> Asuntos Pendientes</li>
+      <li><span class="n">6</span> Análisis de Tiempo y Proyección</li>
+      <li><span class="n">7</span> Consideraciones para Producción</li>
+      <li><span class="n">8</span> Créditos</li>
+    </ol>
+    <p><small>Documento generado para impresión a PDF. Cada sección principal comienza en página
+    nueva. Las capturas de pantalla corresponden al estado de la aplicación al cierre del sprint
+    (v0.2.0).</small></p>
+  </section>
+</div>
+
+<!-- ============================================================ -->
+<!-- 1. RESUMEN EJECUTIVO                                          -->
+<!-- ============================================================ -->
+<div class="page page-break">
+  <section>
+    <h2>1 · Resumen Ejecutivo</h2>
+
+    <p class="lead">
+      <strong>Verdeo</strong> es la empresa argentina de comida saludable por suscripción que
+      entrega menús semanales a domicilio en cuatro regiones del país. Este informe documenta el
+      cierre del <strong>primer long run</strong> de desarrollo: la construcción, desde cero, de la
+      plataforma interna que centraliza ventas, conversaciones, cocina, logística y analítica del
+      negocio.
+    </p>
+
+    <h3>Qué es Verdeo (la plataforma)</h3>
+    <p>
+      Verdeo es un sistema de gestión comercial y logística de tipo <em>panel único</em>. Reemplaza
+      el flujo disperso de planillas, chats sueltos y mensajes manuales por una herramienta integral
+      donde el equipo opera el ciclo completo del negocio: desde que un cliente escribe por WhatsApp,
+      Messenger o Instagram, hasta que su pedido se cocina, se rutea y se entrega. Incorpora además
+      una capa de inteligencia artificial (Claude y Ollama) para asistencia interna y, a futuro,
+      respuesta automatizada de conversaciones.
+    </p>
+
+    <h3>Qué se construyó en este sprint</h3>
+    <p>
+      Una aplicación web completa sobre el stack TALL (Tailwind + Alpine.js + Laravel + Livewire),
+      desplegada en una infraestructura Docker de nueve contenedores sobre Windows 11 con WSL2. La
+      aplicación cubre <strong>19 áreas funcionales</strong> con control de acceso por rol, doble
+      base de datos (entorno de prueba y producción), temas visuales claros y oscuros, y portal
+      diferenciado para clientes finales.
+    </p>
+
+    <div class="stat-grid">
+      <div class="stat"><span class="num">19</span><span class="label">Áreas funcionales</span></div>
+      <div class="stat"><span class="num">9</span><span class="label">Contenedores Docker</span></div>
+      <div class="stat"><span class="num">5</span><span class="label">Roles de usuario</span></div>
+      <div class="stat"><span class="num">4</span><span class="label">Zonas geográficas</span></div>
+    </div>
+    <div class="stat-grid">
+      <div class="stat"><span class="num">33</span><span class="label">Componentes Livewire</span></div>
+      <div class="stat"><span class="num">5</span><span class="label">Tipos de menú</span></div>
+      <div class="stat"><span class="num">5</span><span class="label">Temas visuales</span></div>
+      <div class="stat"><span class="num">v0.2.0</span><span class="label">Versión actual</span></div>
+    </div>
+
+    <h3>Estado general</h3>
+    <p>
+      El sistema es <strong>plenamente operativo en entorno local</strong> para la gestión interna:
+      todo el flujo de órdenes, cocina, clientes, zonas, menús, estadísticas y configuración funciona
+      de extremo a extremo. La capa de mensajería entrante/saliente (webhooks de Meta, despacho real
+      de WhatsApp y automatizaciones de n8n) se encuentra construida a nivel de interfaz pero aún no
+      conectada a los proveedores externos. Esto, junto con el endurecimiento para producción
+      (HTTPS, contraseñas, modo debug), constituye el grueso del trabajo pendiente.
+    </p>
+
+    <div class="callout">
+      <p><strong>Lectura rápida:</strong> el motor de gestión interna está terminado y probado con
+      datos sembrados. Lo que falta es principalmente <em>integración externa</em> y
+      <em>preparación de producción</em>, no funcionalidad nueva de negocio.</p>
+    </div>
+  </section>
+</div>
+
+<!-- ============================================================ -->
+<!-- 2. BITÁCORA POR JORNADA                                       -->
+<!-- ============================================================ -->
+<div class="page page-break">
+  <section>
+    <h2>2 · Bitácora por Jornada</h2>
+    <p>
+      A continuación se reconstruye el recorrido del sprint a partir de los registros de sesión y el
+      contexto disponible. Las fechas de las jornadas tempranas son aproximadas: se reconstruyen del
+      historial del proyecto y no de marcas de tiempo exactas. Las jornadas finales (18 al 20 de
+      mayo) están documentadas con precisión.
+    </p>
+
+    <div class="callout warn">
+      <p><strong>Nota de honestidad documental:</strong> la línea de tiempo de la fase inicial es
+      una reconstrucción a partir del contexto del proyecto, no un registro literal. Se presenta
+      agrupada por jornadas de trabajo lógicas más que por días calendario exactos.</p>
+    </div>
+
+    <div class="timeline">
+
+      <div class="tl-entry">
+        <div class="tl-date">Jornada 1 — Infraestructura</div>
+        <div class="tl-title">Cimientos: Docker, WSL2 y el stack base</div>
+        <p>
+          Montaje de la infraestructura completa: nueve contenedores Docker sobre Windows 11 + WSL2
+          Ubuntu 22.04. Se resolvieron varios problemas propios del entorno: el bug del
+          <code>data-root</code> de Docker Desktop, MySQL 8 sobre sistema de archivos NTFS
+          (deshabilitando SSL y la autogeneración de llaves RSA), y el conflicto del puerto 80 con el
+          Apache de WSL —motivo por el cual nginx quedó en el puerto <code>8888</code>. Se
+          inicializó el proyecto Laravel 10 con Livewire 4.3 (Volt SFCs), Tailwind v3 y Alpine.js.
+        </p>
+      </div>
+
+      <div class="tl-entry">
+        <div class="tl-date">Jornada 2 — Autenticación y esqueleto</div>
+        <div class="tl-title">Login, roles y navegación</div>
+        <p>
+          Construcción del sistema de autenticación con cinco roles (Administrador, Responsable de
+          Zona, Colaborador, Cocina, Cliente). Login con fondo de campo de estrellas animado, logo y
+          tema oscuro. Navegación adaptativa por rol: sidebar completo para Admin y Responsable,
+          dock móvil glassmorphic para Colaborador y Cliente, vista exclusiva de cocina para el rol
+          Cocina. Registro de invitados en <code>/unirme</code>.
+        </p>
+      </div>
+
+      <div class="tl-entry">
+        <div class="tl-date">Jornada 3 — Modelos de datos y dominio</div>
+        <div class="tl-title">Zonas, productos, menús y órdenes</div>
+        <p>
+          Definición del modelo de datos del negocio: <code>User</code>, <code>Conversacion</code>,
+          <code>Producto</code>, <code>Plato</code>, <code>Orden</code> y <code>OrdenItem</code>.
+          CRUD de zonas geográficas con menús semanales en JSON. CRUD de productos con cinco tipos
+          de menú, platos por día y doble precio (250g y 400g). Flujo completo de órdenes con su
+          máquina de estados.
+        </p>
+      </div>
+
+      <div class="tl-entry">
+        <div class="tl-date">Jornada 4 — Operación diaria</div>
+        <div class="tl-title">Conversaciones, cocina y logística</div>
+        <p>
+          Inbox multicanal unificado (WhatsApp + Messenger + Instagram) con filtros y detalle por
+          conversación. Vista de cocina con autorefresco cada 10 segundos, alerta sonora y banner
+          verde para pedidos nuevos. Módulo de entregas con mapa interactivo, marcadores GPS,
+          geocodificación desde dirección y hoja de ruta imprimible.
+        </p>
+      </div>
+
+      <div class="tl-entry">
+        <div class="tl-date">Jornada 5 — Inteligencia y analítica</div>
+        <div class="tl-title">Asistente IA, estadísticas y CRM</div>
+        <p>
+          Asistente IA multi-turno con selector de proveedor (Claude / Ollama) y prompt en español
+          rioplatense. Panel de estadísticas con KPIs comparados contra el período anterior, ventas
+          por zona, top de productos y embudo de conversión. CRM de clientes con segmentación
+          (frecuentes, en riesgo, nuevos). Integración de la <code>OllamaService</code> con el
+          modelo local llama3.2.
+        </p>
+      </div>
+
+      <div class="tl-entry">
+        <div class="tl-date">Jornada 6 — Configuración y pulido</div>
+        <div class="tl-title">Ajustes, marketing, temas y portal del cliente</div>
+        <p>
+          Panel de Ajustes integral: apariencia (5 temas), IA, WhatsApp por zona, API de WhatsApp
+          (Evolution o Meta), canales Messenger/Instagram, servidor de datos (Alice/Betty) y
+          sincronización. Módulos de marketing por canal. Portal del cliente con sus propias órdenes.
+          Rastreador de enlaces cortos. Log de actividad. Pulido visual general.
+        </p>
+      </div>
+
+      <div class="tl-entry">
+        <div class="tl-date">18 – 20 de mayo de 2026 — Cierre del sprint</div>
+        <div class="tl-title">Datos de prueba, documentación, branding y correo</div>
+        <p>Jornada final del long run, documentada en detalle:</p>
+        <ul>
+          <li><strong>Datos de prueba multicanal:</strong> se ejecutó el
+          <code>TestConversacionesMulticanalSeeder</code>, cargando 24 conversaciones de prueba
+          (12 WhatsApp + 6 Messenger + 6 Instagram) vía <code>docker exec</code> en el contenedor
+          <code>verdeo_laravel</code>.</li>
+          <li><strong>Reescritura de la página de Ayuda:</strong> se reemplazó la escueta guía de 5
+          secciones por un acordeón "Funcionalidades" de 19 secciones que cubre cada área del
+          sistema. La pestaña "Acerca de" se actualizó a v0.2.0, sumando MySQL 8, Redis y Claude
+          API al detalle de stack.</li>
+          <li><strong>Integración del logo:</strong> el logo original (diseño circular de hoja
+          tropical, 1024×1024, 1,6 MB) se optimizó a 256×256 PNG de 62 KB mediante PHP GD dentro del
+          contenedor —una reducción del 96 %—. Se generaron favicons de 32 px y 192 px y se
+          añadieron las etiquetas <code>&lt;link&gt;</code> en ambos layouts, con cache-buster
+          <code>?v=2</code> para invalidar el 404 cacheado.</li>
+          <li><strong>Configuración de correo en Ajustes:</strong> nueva tarjeta "Correo
+          electrónico" con cuatro presets de proveedor (SMTP / Gmail / Outlook / Resend),
+          autocompletado de host y puerto, contraseña segura de escritura única, campos de remitente
+          y prueba de conectividad TCP vía <code>fsockopen</code>.</li>
+          <li><strong>Datos estadísticos:</strong> el <code>EstadisticasTestSeeder</code> insertó
+          142 órdenes repartidas en 30 días con fechas históricas reales. El sistema quedó con 168
+          órdenes totales, $7,5 M de facturación (entregadas), distribución realista por zona y
+          tendencia creciente en los últimos 7 días.</li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+</div>
+
+<!-- ============================================================ -->
+<!-- 3. FUNCIONALIDADES IMPLEMENTADAS                              -->
+<!-- ============================================================ -->
+<div class="page page-break">
+  <section>
+    <h2>3 · Funcionalidades Implementadas</h2>
+    <p>
+      El sistema cubre 19 áreas funcionales. A continuación se detallan agrupadas por dominio, con
+      las capturas de pantalla disponibles del estado v0.2.0.
+    </p>
+
+    <h3>3.1 · Acceso al sistema</h3>
+
+    <figure>
+      <img src="previews 1.0/login.png" alt="Pantalla de login de Verdeo">
+      <figcaption><strong>Login.</strong> Acceso con fondo de campo de estrellas animado, logo y
+      tema oscuro. Cinco roles diferenciados y registro de clientes en <code>/unirme</code>.</figcaption>
+    </figure>
+
+    <h4>Autenticación y roles</h4>
+    <ul>
+      <li>Cinco roles: Administrador, Responsable de Zona, Colaborador, Cocina y Cliente.</li>
+      <li>Navegación según rol: sidebar completo (Admin/Responsable), dock móvil (Colaborador/Cliente),
+      vista exclusiva de cocina (Cocina).</li>
+      <li>Registro autónomo de clientes en <code>/unirme</code>.</li>
+    </ul>
+
+    <h3>3.2 · Tablero principal</h3>
+
+    <figure>
+      <img src="previews 1.0/dashboard.png" alt="Dashboard principal de Verdeo">
+      <figcaption><strong>Dashboard.</strong> KPIs del día, panel de zonas activas con números de
+      WhatsApp, estado de los servicios del sistema y conversaciones recientes.</figcaption>
+    </figure>
+
+    <ul>
+      <li>KPIs: conversaciones de hoy, conversaciones activas, pedidos pendientes y gráfico semanal
+      de órdenes.</li>
+      <li>Panel de zonas activas con sus números de WhatsApp.</li>
+      <li>Panel de estado del sistema con badges de salud (Horizon, Evolution API, n8n, Ollama).</li>
+      <li>Ventas de los últimos 30 días por zona.</li>
+    </ul>
+
+    <h3>3.3 · Comunicación</h3>
+
+    <figure>
+      <img src="previews 1.0/gestion de conversaciones.png" alt="Inbox multicanal de conversaciones">
+      <figcaption><strong>Conversaciones.</strong> Inbox unificado de WhatsApp, Messenger e
+      Instagram, con filtros por canal, zona y estado. Identificación cromática por canal.</figcaption>
+    </figure>
+
+    <figure>
+      <img src="previews 1.0/servicio de mensajeria interno.png" alt="Chat interno del equipo">
+      <figcaption><strong>Chat Interno.</strong> Mensajería entre usuarios del equipo, con badge de
+      no leídos en el sidebar.</figcaption>
+    </figure>
+
+    <h4>Conversaciones (inbox multicanal)</h4>
+    <ul>
+      <li>Inbox unificado WhatsApp + Messenger + Instagram.</li>
+      <li>Filtros por canal, zona y estado (abierta / esperando / cerrada).</li>
+      <li>Detalle por conversación con historial completo y marcas de tiempo.</li>
+      <li>Identificación de canal: verde = WhatsApp, azul = Messenger, rosa = Instagram.</li>
+      <li>Enlace al usuario registrado cuando el contacto coincide con un cliente.</li>
+    </ul>
+
+    <h3>3.4 · Asistente de Inteligencia Artificial</h3>
+
+    <figure>
+      <img src="previews 1.0/asistente virtual.png" alt="Asistente virtual con IA">
+      <figcaption><strong>Asistente IA (/ai).</strong> Chat multi-turno con proveedor configurable
+      (Claude / Ollama), prompt en español rioplatense y prompts sugeridos en el estado vacío.</figcaption>
+    </figure>
+
+    <h3>3.5 · Zonas, productos y menús</h3>
+
+    <figure>
+      <img src="previews 1.0/gestion por zonas geograficas.png" alt="Gestión de zonas geográficas">
+      <figcaption><strong>Zonas.</strong> CRUD de zonas geográficas con menús semanales en JSON,
+      coordenadas GPS, dirección de referencia y días de entrega.</figcaption>
+    </figure>
+
+    <figure>
+      <img src="previews 1.0/gestion de menus.png" alt="Gestión de productos y menús semanales">
+      <figcaption><strong>Productos y Menús Semanales.</strong> Cinco tipos de menú con platos
+      diarios y doble precio (250g/400g). Sincronización de menús y precios hacia las zonas
+      seleccionadas.</figcaption>
+    </figure>
+
+    <h4>Productos y menús semanales</h4>
+    <ul>
+      <li>Cinco tipos de menú con platos diarios (lunes a viernes).</li>
+      <li>Precios diferenciados de 250g y 400g por menú.</li>
+      <li>"Sincronizar menús en Zonas" — copia el menú completo a las zonas elegidas.</li>
+      <li>"Sincronizar precios en Zonas" — actualiza solo precios en los menús de zona.</li>
+    </ul>
+
+    <h3>3.6 · Operación de órdenes y cocina</h3>
+
+    <figure>
+      <img src="previews 1.0/gestion de ordenes.png" alt="Gestión de órdenes">
+      <figcaption><strong>Órdenes.</strong> Flujo completo Pendiente → Aprobada → En cocina → Lista
+      para entregar → Entregada, con confirmación masiva a cocina y lista de ventas imprimible.</figcaption>
+    </figure>
+
+    <h4>Órdenes</h4>
+    <ul>
+      <li>Máquina de estados: Pendiente → Aprobada → En cocina → Lista para entregar → Entregada
+      (o Cancelada).</li>
+      <li>Alta de orden: cliente, zona, tipo de menú, tamaño de porción y forma de pago.</li>
+      <li>Cambio de estado desde el selector de la tabla; confirmación masiva a cocina por casillas.</li>
+      <li>"Lista de ventas" — resumen diario imprimible cuando se filtra por zona.</li>
+    </ul>
+
+    <h4>Cocina</h4>
+    <ul>
+      <li>Vista exclusiva: solo órdenes en estado "Aprobada".</li>
+      <li>Autorefresco cada 10 segundos, beep de audio y banner verde para pedidos nuevos.</li>
+      <li>Botón "Lista para entregar" y badge rojo para pedidos con más de 30 minutos en cocina.</li>
+    </ul>
+
+    <h4>Entregas y logística</h4>
+    <ul>
+      <li>Mapa interactivo con marcadores GPS por cliente, filtros por fecha y zona.</li>
+      <li>Geocodificación desde dirección y hoja de ruta imprimible.</li>
+    </ul>
+
+    <h3>3.7 · Clientes y CRM</h3>
+
+    <figure>
+      <img src="previews 1.0/gestion clientes.png" alt="Gestión de clientes">
+      <figcaption><strong>Clientes.</strong> Directorio completo con número de cliente, zona y datos
+      de contacto. El CRM añade inteligencia comercial: retención, frecuencia y segmentación.</figcaption>
+    </figure>
+
+    <h4>Clientes y CRM de clientes</h4>
+    <ul>
+      <li>Directorio con <code>numero_cliente</code>, zona y datos de contacto; búsqueda por nombre,
+      teléfono o zona.</li>
+      <li>Ficha individual con historial de pedidos.</li>
+      <li>CRM: retención, frecuencia de compra, segmentación (frecuentes, en riesgo, nuevos) y
+      enlace directo a la conversación de WhatsApp del cliente.</li>
+    </ul>
+
+    <h3>3.8 · Analítica</h3>
+
+    <figure>
+      <img src="previews 1.0/estadisticas.png" alt="Panel de estadísticas">
+      <figcaption><strong>Estadísticas.</strong> KPIs comparados contra el período anterior, ventas
+      por zona, top de productos, gráfico diario y embudo de conversión de conversaciones.</figcaption>
+    </figure>
+
+    <ul>
+      <li>Períodos: 7 días, 30 días, mes en curso.</li>
+      <li>KPIs: órdenes totales, facturación (solo entregadas) y ticket promedio, todos con
+      variación porcentual contra el período anterior.</li>
+      <li>Órdenes y facturación por zona; top de productos por volumen e ingresos.</li>
+      <li>Embudo de conversión: total → con órdenes → tasa de conversión.</li>
+    </ul>
+
+    <h3>3.9 · Mensajería masiva y marketing</h3>
+    <h4>Redacción (mensajería masiva)</h4>
+    <ul>
+      <li>Envío masivo de WhatsApp a contactos filtrados por zona y estado.</li>
+      <li>Variables: <code>{{nombre}}</code>, <code>{{zona}}</code>, <code>{{ultimo_pedido}}</code>.</li>
+      <li>Vista previa en tiempo real; selector Evolution API o META WhatsApp Business API.</li>
+    </ul>
+    <h4>Marketing</h4>
+    <ul>
+      <li>Cinco módulos de canal: Email, WhatsApp, Facebook, Instagram y Otros.</li>
+      <li>Email: composición de campañas con plantillas. WhatsApp: plantillas de Business API.</li>
+    </ul>
+
+    <h3>3.10 · Configuración (Ajustes)</h3>
+
+    <figure>
+      <img src="previews 1.0/temas claros y obscuros.png" alt="Selector de temas claros y oscuros">
+      <figcaption><strong>Temas.</strong> Cinco temas (Bosque, Carbón, Aurora, Cielo, Natural) con
+      vista previa instantánea; persisten en localStorage y en el modelo Setting.</figcaption>
+    </figure>
+
+    <ul>
+      <li><strong>Apariencia:</strong> 5 temas con vista previa instantánea.</li>
+      <li><strong>IA:</strong> selector de proveedor, modelo, API key segura, prompt de sistema y
+      temperatura, para chatbot y asistente interno.</li>
+      <li><strong>WhatsApp por zona:</strong> múltiples números por zona con UI de chips.</li>
+      <li><strong>API de WhatsApp:</strong> Evolution API o META Business API, con prueba de conexión.</li>
+      <li><strong>Canales:</strong> Messenger e Instagram con App Secret, Verify Token y tokens por
+      canal.</li>
+      <li><strong>Correo electrónico:</strong> configuración SMTP con presets y prueba de
+      conectividad TCP.</li>
+      <li><strong>Servidor de datos:</strong> alternancia Alice (prueba) / Betty (producción) con
+      badge en el topbar.</li>
+      <li><strong>Sincronización Alice → Betty</strong> y selección de zonas para sincronización.</li>
+    </ul>
+
+    <h3>3.11 · Portal del cliente y cuenta</h3>
+    <ul>
+      <li>Autorregistro en <code>/unirme</code>, órdenes propias y dock de navegación específico.</li>
+      <li>Mi Cuenta: edición de perfil (nombre, apellido, ciudad, WhatsApp, foto) y cambio de
+      contraseña.</li>
+    </ul>
+
+    <h3>3.12 · Sistema y soporte</h3>
+
+    <figure>
+      <img src="previews 1.0/historial de cambios.png" alt="Log de actividad del sistema">
+      <figcaption><strong>Log de Actividad (/sistema).</strong> Rastro de auditoría cronológico,
+      filtrable por usuario y tipo de acción, solo para administradores.</figcaption>
+    </figure>
+
+    <figure>
+      <img src="previews 1.0/menu de ayuda.png" alt="Menú de ayuda">
+      <figcaption><strong>Ayuda.</strong> Acordeón "Funcionalidades" de 19 secciones —reescrito en
+      esta jornada— y pestaña "Acerca de" con versión v0.2.0, stack y créditos.</figcaption>
+    </figure>
+
+    <h4>Usuarios, log y rastreador de enlaces</h4>
+    <ul>
+      <li>Gestión de equipo con 5 roles, foto, cambio de rol y borrado con limpieza de foto.</li>
+      <li>Log de actividad cronológico filtrable, solo administradores.</li>
+      <li>Rastreador de enlaces cortos con conteo de clics (<code>/ir/{enlace}</code>).</li>
+    </ul>
+  </section>
+</div>
+
+<!-- ============================================================ -->
+<!-- 4. ARQUITECTURA TÉCNICA                                       -->
+<!-- ============================================================ -->
+<div class="page page-break">
+  <section>
+    <h2>4 · Arquitectura Técnica</h2>
+
+    <h3>4.1 · Stack de aplicación</h3>
+    <table>
+      <thead><tr><th>Capa</th><th>Tecnología</th><th>Notas</th></tr></thead>
+      <tbody>
+        <tr><td>Framework</td><td>Laravel 10</td><td>Backend PHP, eje de la aplicación</td></tr>
+        <tr><td>Componentes</td><td>Livewire 4.3 (Volt SFCs)</td><td>Componentes de archivo único</td></tr>
+        <tr><td>Interactividad</td><td>Alpine.js</td><td>Comportamiento del lado del cliente</td></tr>
+        <tr><td>Estilos</td><td>Tailwind CSS v3</td><td>Sistema de temas con variables CSS</td></tr>
+        <tr><td>Base de datos</td><td>MySQL 8</td><td>Doble base: Alice (prueba) y Betty (producción)</td></tr>
+        <tr><td>Caché / sesiones / colas</td><td>Redis</td><td>Backend de caché, sesión y cola</td></tr>
+        <tr><td>Automatización</td><td>n8n</td><td>Orquestación de flujos de WhatsApp</td></tr>
+        <tr><td>WhatsApp</td><td>Evolution API</td><td>Integración no oficial; alternativa Meta Business API</td></tr>
+        <tr><td>IA</td><td>Claude (Anthropic) + Ollama</td><td>Cloud + modelo local llama3.2</td></tr>
+      </tbody>
+    </table>
+
+    <h3>4.2 · Contenedores Docker</h3>
+    <p>Nueve contenedores sobre Windows 11 + WSL2 Ubuntu 22.04:</p>
+    <table>
+      <thead><tr><th>Contenedor</th><th>Imagen</th><th>Puerto</th><th>Función</th></tr></thead>
+      <tbody>
+        <tr><td><code>verdeo_nginx</code></td><td>nginx:alpine</td><td>8888 → 80</td><td>Servidor web (puerto 8888 por el Apache de WSL)</td></tr>
+        <tr><td><code>verdeo_laravel</code></td><td>verdeo-tall-laravel-app</td><td>9000</td><td>Aplicación PHP-FPM</td></tr>
+        <tr><td><code>verdeo_mysql</code></td><td>mysql:8.0</td><td>3306</td><td>Base de datos relacional</td></tr>
+        <tr><td><code>verdeo_redis</code></td><td>redis:alpine</td><td>6379</td><td>Caché, sesiones y colas</td></tr>
+        <tr><td><code>verdeo_n8n</code></td><td>n8nio/n8n</td><td>5678</td><td>Automatización de flujos</td></tr>
+        <tr><td><code>verdeo_evolution</code></td><td>atendai/evolution-api</td><td>8080</td><td>Pasarela de WhatsApp</td></tr>
+        <tr><td><code>verdeo_ollama</code></td><td>ollama/ollama</td><td>11434</td><td>Inferencia IA local (llama3.2)</td></tr>
+        <tr><td><code>verdeo_queue</code></td><td>verdeo-tall-queue-worker</td><td>—</td><td>Worker de cola</td></tr>
+        <tr><td><code>verdeo_scheduler</code></td><td>verdeo-tall-scheduler</td><td>—</td><td>Programador de tareas</td></tr>
+      </tbody>
+    </table>
+
+    <h3>4.3 · Esquema de base de datos (resumen)</h3>
+    <table>
+      <thead><tr><th>Modelo</th><th>Rol</th><th>Campos clave</th></tr></thead>
+      <tbody>
+        <tr><td><code>User</code></td><td>Usuarios y clientes</td><td>rol (admin / responsable_zona / colaborador / cocina / cliente), zona, datos de contacto, foto</td></tr>
+        <tr><td><code>Conversacion</code></td><td>Hilo de mensajería</td><td>canal, zona, telefono, nombre, estado, ultimo_mensaje, ultimo_mensaje_at</td></tr>
+        <tr><td><code>Producto</code></td><td>Tipo de menú</td><td>tipo, activo, orden, precio_250g, precio_400g</td></tr>
+        <tr><td><code>Plato</code></td><td>Plato diario</td><td>pertenece a Producto, día de la semana</td></tr>
+        <tr><td><code>Orden</code></td><td>Pedido</td><td>pertenece a User, estado, zona</td></tr>
+        <tr><td><code>OrdenItem</code></td><td>Ítem de pedido</td><td>producto_id, tamano (250g/400g), forma_pago, cantidad, precio_unitario, subtotal</td></tr>
+        <tr><td><code>Setting</code></td><td>Configuración</td><td>Pares clave-valor; credenciales con patrón de escritura única</td></tr>
+      </tbody>
+    </table>
+
+    <h3>4.4 · Patrones clave</h3>
+    <div class="two-col">
+      <div class="card card-accent">
+        <h4 style="margin-top:0">Volt SFCs</h4>
+        <p style="margin-bottom:0">Los componentes Livewire se escriben como archivos únicos (Volt).
+        Las rutas Volt <strong>no son cacheables</strong>: nunca debe ejecutarse
+        <code>route:cache</code>.</p>
+      </div>
+      <div class="card card-accent">
+        <h4 style="margin-top:0">Doble base de datos</h4>
+        <p style="margin-bottom:0">Alice (prueba) y Betty (producción) se alternan desde Ajustes.
+        Sincronización en un paso de zonas, productos y platos de Alice → Betty.</p>
+      </div>
+      <div class="card card-accent">
+        <h4 style="margin-top:0">Redis como backend único</h4>
+        <p style="margin-bottom:0">Caché, sesiones y colas comparten Redis. Horizon supervisa los
+        workers de cola.</p>
+      </div>
+      <div class="card card-accent">
+        <h4 style="margin-top:0">Credenciales de escritura única</h4>
+        <p style="margin-bottom:0">API keys, contraseñas SMTP y tokens se guardan en
+        <code>Setting</code>: se escriben pero nunca se devuelven; la UI muestra
+        <code>●●●●</code> si hay valor.</p>
+      </div>
+    </div>
+
+    <h3>4.5 · Servicios de IA</h3>
+    <ul>
+      <li><strong>Ollama</strong> — modelo local llama3.2 (3.2B, Q4_K_M, ~2 GB). Inferencia solo
+      CPU: 60–90 s por respuesta, ~4,2 GB de RAM al cargar. Servicio
+      <code>app/Services/OllamaService.php</code> con métodos <code>generate()</code>,
+      <code>chat()</code>, <code>stream()</code>, <code>classify()</code>,
+      <code>extractOrderFromText()</code>, <code>suggestReply()</code>,
+      <code>isAvailable()</code>.</li>
+      <li><strong>Claude (Anthropic)</strong> — proveedor cloud configurable desde Ajustes para el
+      chatbot y el asistente interno.</li>
+    </ul>
+  </section>
+</div>
+
+<!-- ============================================================ -->
+<!-- 5. ASUNTOS PENDIENTES                                         -->
+<!-- ============================================================ -->
+<div class="page page-break">
+  <section>
+    <h2>5 · Asuntos Pendientes</h2>
+    <p>
+      El backlog se organiza por prioridad. Lo crítico bloquea la puesta en producción; lo alto
+      habilita la mensajería real; lo medio activa la automatización; lo bajo son mejoras
+      deseables.
+    </p>
+
+    <h3><span class="badge b-crit">Crítico</span> &nbsp; Bloquea producción</h3>
+    <div class="callout crit">
+      <p><strong>Modo debug habilitado.</strong> <code>APP_DEBUG</code> debe deshabilitarse antes de
+      exponer el sistema; hoy filtra trazas internas.</p>
+    </div>
+    <div class="callout crit">
+      <p><strong>Sin HTTPS.</strong> No hay certificados SSL ni configuración HTTPS en nginx. Es
+      requisito para webhooks de Meta y para tráfico de clientes.</p>
+    </div>
+    <div class="callout crit">
+      <p><strong>Crash loop de Evolution API.</strong> El contenedor <code>verdeo_evolution</code>
+      lleva semanas en <code>Restarting(1)</code>: Prisma intenta migrar sobre una base no vacía.
+      Solución: hacer baseline de las migraciones de Prisma.</p>
+    </div>
+    <div class="callout crit">
+      <p><strong>Contraseñas de desarrollo.</strong> Todas las credenciales (DB, n8n, Evolution,
+      admin) son de desarrollo y deben endurecerse antes de producción.</p>
+    </div>
+
+    <h3><span class="badge b-high">Alto</span> &nbsp; Habilita la mensajería real</h3>
+    <table>
+      <thead><tr><th>Tarea</th><th>Descripción</th></tr></thead>
+      <tbody>
+        <tr><td><code>ProcessMetaWebhookEvent</code></td><td>Job para procesar webhooks entrantes de Meta (mensajes de Messenger e Instagram → crear/actualizar <code>Conversacion</code>).</td></tr>
+        <tr><td><code>MessageDispatcher</code></td><td>Servicio que conecte el botón "responder" del detalle de conversación con el envío real vía Evolution API o Meta Graph API.</td></tr>
+        <tr><td>UI de respuesta</td><td>Interfaz de respuesta a conversaciones en <code>conversaciones/ver.blade.php</code>.</td></tr>
+      </tbody>
+    </table>
+
+    <h3><span class="badge b-med">Medio</span> &nbsp; Activa la automatización</h3>
+    <table>
+      <thead><tr><th>Tarea</th><th>Descripción</th></tr></thead>
+      <tbody>
+        <tr><td>Credencial Ollama en n8n</td><td>Configurar en la UI de n8n con Base URL <code>http://ollama:11434</code>.</td></tr>
+        <tr><td>Flujo de autorespuesta</td><td>Webhook de Evolution API → clasificación de intención → IA → respuesta.</td></tr>
+        <tr><td>Flujo de extracción de órdenes</td><td>Parsear pedidos en texto libre de WhatsApp hacia registros <code>Orden</code>.</td></tr>
+        <tr><td>Instancias de WhatsApp</td><td>Configurar una instancia de Evolution API por zona (4 instancias).</td></tr>
+        <tr><td>nginx en puerto 80</td><td>Deshabilitar el Apache de WSL y cambiar 8888 → 80 en <code>docker-compose.yml</code>.</td></tr>
+      </tbody>
+    </table>
+
+    <h3><span class="badge b-low">Bajo</span> &nbsp; Mejoras deseables</h3>
+    <ul>
+      <li>Análisis de órdenes con IA: detección de patrones en la página de pedidos.</li>
+      <li>Generador de contenido con IA para copy de marketing.</li>
+      <li>Notificaciones push de pedidos nuevos (navegador / móvil).</li>
+      <li>Estrategia de carga de datos de producción para la base Betty.</li>
+    </ul>
+  </section>
+</div>
+
+<!-- ============================================================ -->
+<!-- 6. ANÁLISIS DE TIEMPO Y PROYECCIÓN                            -->
+<!-- ============================================================ -->
+<div class="page page-break">
+  <section>
+    <h2>6 · Análisis de Tiempo y Proyección</h2>
+
+    <h3>6.1 · Qué llevó más tiempo de lo esperado</h3>
+    <ul>
+      <li><strong>La infraestructura, no el código.</strong> El mayor desgaste del sprint estuvo en
+      el entorno: el bug del <code>data-root</code> de Docker Desktop, MySQL 8 negándose a arrancar
+      sobre NTFS, el conflicto del puerto 80 con Apache. Cada uno consumió tiempo de diagnóstico
+      desproporcionado frente a su tamaño real.</li>
+      <li><strong>Los stubs de Volt.</strong> El conflicto entre los stubs <code>⚡*.blade.php</code>
+      generados por <code>make:livewire</code> y los SFCs reales generó fallos intermitentes y
+      difíciles de rastrear hasta identificar el patrón.</li>
+      <li><strong>El crash loop de Evolution API.</strong> Sigue sin resolverse; se degradó a baja
+      prioridad porque no bloquea la gestión interna.</li>
+      <li><strong>Archivos Blade complejos.</strong> El quoting de PHP, Blade y directivas en la
+      shell obligó a escribir los archivos vía scripts intermedios, sumando fricción.</li>
+    </ul>
+
+    <h3>6.2 · Qué resultó eficiente</h3>
+    <ul>
+      <li><strong>Volt SFCs.</strong> Una vez resuelto el tema de los stubs, los componentes de
+      archivo único aceleraron mucho la construcción de pantallas.</li>
+      <li><strong>El patrón de credenciales reutilizable.</strong> El mismo patrón de
+      <code>Setting</code> de escritura única sirvió para API keys, tokens y la nueva contraseña
+      SMTP sin rediseño.</li>
+      <li><strong>Datos sembrados.</strong> Los seeders permitieron validar estadísticas, CRM y el
+      inbox con volúmenes realistas sin esperar datos reales.</li>
+      <li><strong>El sistema de temas.</strong> Basado en variables CSS, sumar temas nuevos fue
+      casi gratuito.</li>
+    </ul>
+
+    <h3>6.3 · Estimación del trabajo restante</h3>
+    <table>
+      <thead><tr><th>Bloque</th><th>Alcance</th><th>Estimación</th></tr></thead>
+      <tbody>
+        <tr><td>Endurecimiento para producción</td><td>Debug off, contraseñas, optimize, baseline de Evolution</td><td>1 – 2 jornadas</td></tr>
+        <tr><td>HTTPS</td><td>certbot, certificados, HTTPS en nginx, puerto 80</td><td>1 jornada</td></tr>
+        <tr><td>Mensajería entrante/saliente</td><td>Webhook de Meta, MessageDispatcher, UI de respuesta</td><td>2 – 3 jornadas</td></tr>
+        <tr><td>Automatización n8n</td><td>Credencial Ollama, flujos de autorespuesta y extracción</td><td>2 – 3 jornadas</td></tr>
+        <tr><td>Instancias de WhatsApp</td><td>4 instancias de Evolution API, una por zona</td><td>1 jornada</td></tr>
+        <tr><td>Mejoras con IA</td><td>Análisis de órdenes, generador de contenido, push</td><td>2 – 3 jornadas</td></tr>
+      </tbody>
+    </table>
+
+    <h3>6.4 · Cuándo podría llegar a producción</h3>
+    <p>
+      Para un <strong>lanzamiento mínimo viable</strong> —gestión interna real, sin automatización
+      de IA— alcanza con el endurecimiento de producción y HTTPS: estimado en
+      <strong>2 a 3 jornadas de trabajo enfocado</strong>. El sistema ya soporta el ciclo completo
+      de órdenes, cocina y logística.
+    </p>
+    <p>
+      Para el <strong>lanzamiento completo</strong> con mensajería real bidireccional y
+      automatización de WhatsApp vía n8n, el horizonte es de <strong>8 a 12 jornadas adicionales</strong>,
+      condicionado a resolver el crash loop de Evolution API y a la configuración de las cuentas de
+      Meta.
+    </p>
+    <div class="callout">
+      <p><strong>Recomendación:</strong> separar el lanzamiento en dos etapas. Primero la gestión
+      interna (rápida, alto valor inmediato para el equipo); después la capa de mensajería
+      automatizada, que depende de integraciones externas con sus propios tiempos.</p>
+    </div>
+  </section>
+</div>
+
+<!-- ============================================================ -->
+<!-- 7. CONSIDERACIONES PARA PRODUCCIÓN                            -->
+<!-- ============================================================ -->
+<div class="page page-break">
+  <section>
+    <h2>7 · Consideraciones para Producción</h2>
+    <p>Checklist a completar antes de exponer el sistema fuera del entorno local.</p>
+
+    <h3>7.1 · Seguridad</h3>
+    <table>
+      <thead><tr><th>Ítem</th><th>Acción</th></tr></thead>
+      <tbody>
+        <tr><td>Modo debug</td><td>Establecer <code>APP_DEBUG=false</code> y <code>APP_ENV=production</code>.</td></tr>
+        <tr><td>Contraseña de base de datos</td><td>Reemplazar <code>verdeo_password_cambiar</code> y la root por valores fuertes.</td></tr>
+        <tr><td>Contraseña de n8n</td><td>Reemplazar <code>n8n_password_cambiar</code>.</td></tr>
+        <tr><td>Evolution API key</td><td>Reemplazar <code>evolution_key_cambiar</code>.</td></tr>
+        <tr><td>Usuario admin</td><td>Cambiar la contraseña de <code>admin@verdeo.com.ar</code>.</td></tr>
+        <tr><td>HTTPS</td><td>Emitir certificados con certbot y configurar HTTPS en nginx.</td></tr>
+        <tr><td>Secrets</td><td>Verificar que ninguna API key viaje en texto plano en el repositorio.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>7.2 · Rendimiento</h3>
+    <table>
+      <thead><tr><th>Ítem</th><th>Acción</th></tr></thead>
+      <tbody>
+        <tr><td>Caché de configuración</td><td>Ejecutar <code>php artisan config:cache</code> y <code>view:cache</code>.</td></tr>
+        <tr><td>Rutas</td><td><strong>No</strong> ejecutar <code>route:cache</code>: las rutas Volt no son cacheables.</td></tr>
+        <tr><td>Autoload</td><td>Ejecutar <code>composer install --optimize-autoloader --no-dev</code>.</td></tr>
+        <tr><td>Assets</td><td>Compilar con <code>npm run build</code> para producción.</td></tr>
+        <tr><td>Ollama</td><td>Considerar GPU o un proveedor cloud: 60–90 s por inferencia en CPU es alto.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>7.3 · Infraestructura</h3>
+    <table>
+      <thead><tr><th>Ítem</th><th>Acción</th></tr></thead>
+      <tbody>
+        <tr><td>Puerto de nginx</td><td>Deshabilitar el Apache de WSL y cambiar 8888 → 80.</td></tr>
+        <tr><td>Evolution API</td><td>Resolver el crash loop (baseline de Prisma) antes de activar WhatsApp.</td></tr>
+        <tr><td>Respaldos</td><td>Definir respaldo automático de MySQL (Alice y Betty).</td></tr>
+        <tr><td>Base Betty</td><td>Definir la estrategia de carga de datos reales de producción.</td></tr>
+        <tr><td>Monitoreo</td><td>Verificar Horizon y los badges de salud del dashboard en el entorno real.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>7.4 · Datos y operación</h3>
+    <ul>
+      <li>Limpiar de Betty todos los datos de prueba antes del lanzamiento.</li>
+      <li>Verificar que la sincronización Alice → Betty produzca el estado esperado.</li>
+      <li>Validar los números de WhatsApp por zona contra las cuentas reales.</li>
+      <li>Configurar SMTP real y probar la conectividad desde Ajustes.</li>
+      <li>Capacitar al equipo en los flujos de órdenes y cocina.</li>
+    </ul>
+  </section>
+</div>
+
+<!-- ============================================================ -->
+<!-- 8. CRÉDITOS                                                   -->
+<!-- ============================================================ -->
+<div class="page page-break">
+  <section>
+    <h2>8 · Créditos</h2>
+
+    <div class="card card-accent">
+      <h3 style="margin-top:0">Verdeo</h3>
+      <p>Sistema integral de gestión comercial y logística para Verdeo, empresa argentina de comida
+      saludable por suscripción.</p>
+      <p style="margin-bottom:0"><strong>Versión documentada:</strong> v0.2.0 &nbsp;·&nbsp;
+      <strong>Cierre del primer long run:</strong> 20 de mayo de 2026</p>
+    </div>
+
+    <h3>Desarrollo</h3>
+    <p>
+      <strong>Santiago Creide</strong> — desarrollador y propietario. Diseño del producto,
+      decisiones de negocio, construcción de la infraestructura y desarrollo de la aplicación.
+    </p>
+    <p>
+      <strong>Claude (Anthropic)</strong> — co-desarrollo asistido por IA: implementación de
+      componentes, resolución de problemas de entorno y documentación.
+    </p>
+
+    <h3>Stack tecnológico</h3>
+    <p>
+      Laravel 10 · Livewire 4.3 (Volt) · Alpine.js · Tailwind CSS v3 · MySQL 8 · Redis · Docker ·
+      WSL2 · n8n · Evolution API · Ollama (llama3.2) · Claude API (Anthropic).
+    </p>
+
+    <hr>
+
+    <div class="callout">
+      <p style="margin-bottom:0"><strong>Cierre del Primer Long Run.</strong> Este informe deja
+      asentado el estado del proyecto Verdeo al término de su primer sprint de desarrollo. El motor
+      de gestión interna está completo y operativo; el camino a producción está trazado y
+      cuantificado. El trabajo continúa.</p>
+    </div>
+
+    <div class="footer">
+      Verdeo · Informe Técnico v1.0 · Bitácora del Primer Long Run<br>
+      Generado el 20 de mayo de 2026 · Documento interno
+    </div>
+  </section>
+</div>
+
+</body>
+</html>

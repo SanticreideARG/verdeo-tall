@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'Verdeo') }} — {{ $title ?? '' }}</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
+    <link rel="shortcut icon" href="/favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
     {{-- Apply saved theme before first paint (localStorage overrides server value for instant flash prevention) --}}
@@ -20,6 +23,7 @@
             to   { opacity:1; transform:translateY(0) scale(1); }
         }
     </style>
+    @stack('styles')
     @livewireStyles
 </head>
 <body class="h-full" x-data>
@@ -34,7 +38,7 @@
 
             {{-- Logo --}}
             <div class="flex items-center h-16 px-5 gap-3" style="border-bottom: 1px solid var(--vd-bdr-soft);">
-                <img src="/images/verdeo-logo.png" alt="Verdeo"
+                <img src="/images/verdeo-logo.png?v=2" alt="Verdeo"
                      class="w-9 h-9 rounded-full object-cover flex-shrink-0"
                      style="filter: drop-shadow(0 2px 8px rgba(58,125,68,0.5));"
                      onerror="this.style.display='none'">
@@ -338,6 +342,19 @@
                     <div style="width:1px; height:22px; background: var(--vd-bdr-soft);"></div>
                     @endif
 
+                    {{-- Server badge (admin / responsable only) --}}
+                    @if(auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isResponsableZona()))
+                    @php $dbEnv = session('db_env', 'alice'); @endphp
+                    <a href="{{ route('ajustes') }}"
+                       title="Servidor activo: {{ $dbEnv === 'betty' ? 'Betty · Producción' : 'Alice · Pruebas' }}"
+                       class="text-[10px] font-bold px-2.5 py-1 rounded-full transition-all"
+                       style="{{ $dbEnv === 'betty'
+                           ? 'background: rgba(239,68,68,0.18); color: #f87171; border: 1px solid rgba(239,68,68,0.35);'
+                           : 'background: rgba(78,158,90,0.12); color: #4e9e5a; border: 1px solid rgba(78,158,90,0.3);' }}">
+                        {{ $dbEnv === 'betty' ? 'BETTY' : 'ALICE' }}
+                    </a>
+                    @endif
+
                     {{-- Theme toggle --}}
                     <button class="theme-toggle" onclick="verdeoToggleTheme()" title="Cambiar tema">
                         <svg class="ic-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -515,8 +532,9 @@
 
     <script>
     function verdeoToggleTheme() {
-        var cur  = document.documentElement.getAttribute('data-theme') || 'dark';
-        var next = cur === 'dark' ? 'light' : 'dark';
+        var lightThemes = ['cielo', 'natural', 'light'];
+        var cur  = document.documentElement.getAttribute('data-theme') || 'bosque';
+        var next = lightThemes.indexOf(cur) >= 0 ? 'bosque' : 'natural';
         document.documentElement.setAttribute('data-theme', next);
         localStorage.setItem('verdeo-theme', next);
         window.dispatchEvent(new Event('verdeo-theme-change'));
