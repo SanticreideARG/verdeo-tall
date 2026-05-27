@@ -10,12 +10,12 @@ class Producto extends Model
 {
     use HasFactory, LogsActivity;
 
-    protected $fillable = ['nombre', 'descripcion', 'tipo', 'activo', 'orden', 'precio_250g', 'precio_400g'];
+    protected $fillable = ['nombre', 'descripcion', 'tipo', 'activo', 'orden', 'precio_250kcal', 'precio_400kcal'];
 
     protected $casts = [
-        'activo'     => 'boolean',
-        'precio_250g' => 'decimal:2',
-        'precio_400g' => 'decimal:2',
+        'activo'        => 'boolean',
+        'precio_250kcal' => 'decimal:2',
+        'precio_400kcal' => 'decimal:2',
     ];
 
     public static function tipos(): array

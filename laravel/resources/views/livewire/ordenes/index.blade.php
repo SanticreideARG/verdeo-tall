@@ -87,7 +87,7 @@ new #[Layout('layouts.app', ['title' => 'Órdenes'])] class extends Component {
     {
         $this->items[] = [
             'producto_id'     => '',
-            'tamano'          => '250g',
+            'tamano'          => '250kcal',
             'forma_pago'      => 'no_definido',
             'precio_unitario' => 0,
             'subtotal'        => 0,
@@ -113,14 +113,14 @@ new #[Layout('layouts.app', ['title' => 'Órdenes'])] class extends Component {
     private function recalcularPrecio(int $idx): void
     {
         $productoId = $this->items[$idx]['producto_id'] ?? '';
-        $tamano     = $this->items[$idx]['tamano'] ?? '250g';
+        $tamano     = $this->items[$idx]['tamano'] ?? '250kcal';
 
         if ($productoId) {
             $producto = Producto::find($productoId);
             if ($producto) {
-                $precio = $tamano === '400g'
-                    ? (float) $producto->precio_400g
-                    : (float) $producto->precio_250g;
+                $precio = $tamano === '400kcal'
+                    ? (float) $producto->precio_400kcal
+                    : (float) $producto->precio_250kcal;
                 $this->items[$idx]['precio_unitario'] = $precio;
                 $this->items[$idx]['subtotal']        = $precio;
             }
@@ -141,7 +141,7 @@ new #[Layout('layouts.app', ['title' => 'Órdenes'])] class extends Component {
             'longitud'                => 'nullable|numeric|between:-180,180',
             'items'                   => 'required|array|min:1',
             'items.*.producto_id'     => 'required|exists:productos,id',
-            'items.*.tamano'          => 'required|in:250g,400g',
+            'items.*.tamano'          => 'required|in:250kcal,400kcal',
             'items.*.forma_pago'      => 'required|in:no_definido,en_destino,transferencia',
         ], [
             'clienteId.required'           => 'Seleccioná un cliente.',
@@ -706,7 +706,7 @@ new #[Layout('layouts.app', ['title' => 'Órdenes'])] class extends Component {
                         @foreach($o->items->take(2) as $it)
                             <p class="text-xs leading-5" style="color: var(--vd-text-soft);">
                                 {{ $it->producto?->nombre ?? '—' }}
-                                <span class="font-mono" style="color: var(--vd-muted-2);">· {{ $it->tamano }}</span>
+                                <span class="font-mono" style="color: var(--vd-muted-2);">· {{ \App\Models\OrdenItem::TAMANOS[$it->tamano] ?? $it->tamano }}</span>
                             </p>
                         @endforeach
                         @if($o->items->count() > 2)
@@ -859,7 +859,7 @@ new #[Layout('layouts.app', ['title' => 'Órdenes'])] class extends Component {
                                     @foreach($orden->items as $item)
                                     <div class="text-xs leading-5" style="color: var(--vd-text-soft);">
                                         {{ $item->producto?->nombre ?? '—' }}
-                                        <span class="font-mono" style="color: var(--vd-muted-2);">· {{ $item->tamano }}</span>
+                                        <span class="font-mono" style="color: var(--vd-muted-2);">· {{ \App\Models\OrdenItem::TAMANOS[$item->tamano] ?? $item->tamano }}</span>
                                         @if($item->cantidad > 1)
                                             <span style="color: var(--vd-muted);">× {{ $item->cantidad }}</span>
                                         @endif

@@ -43,7 +43,7 @@ new #[Layout('layouts.app', ['title' => 'Mi Verdeo'])] class extends Component {
         $producto = Producto::find($productoId);
         if (!$producto) return;
 
-        $precio = $tamano === '400g' ? (float)$producto->precio_400g : (float)$producto->precio_250g;
+        $precio = $tamano === '400kcal' ? (float)$producto->precio_400kcal : (float)$producto->precio_250kcal;
 
         // Merge if same product+size exists
         foreach ($this->items as $k => $it) {
@@ -276,7 +276,7 @@ new #[Layout('layouts.app', ['title' => 'Mi Verdeo'])] class extends Component {
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         @foreach($menus as $m)
         <div class="card p-0 overflow-hidden"
-             x-data="{ size: '250g', open: false }">
+             x-data="{ size: '250kcal', open: false }">
             {{-- Card top --}}
             <div class="px-5 pt-5 pb-4">
                 <div class="flex items-start justify-between gap-3">
@@ -306,24 +306,24 @@ new #[Layout('layouts.app', ['title' => 'Mi Verdeo'])] class extends Component {
 
                 {{-- Prices --}}
                 <div class="flex items-center gap-3 mt-3">
-                    @if($m->precio_250g)
-                    <button type="button" @click="size = '250g'"
+                    @if($m->precio_250kcal)
+                    <button type="button" @click="size = '250kcal'"
                             class="flex-1 py-2 rounded-xl text-sm font-semibold transition-all duration-150"
-                            :style="size === '250g'
+                            :style="size === '250kcal'
                                 ? 'background: linear-gradient(135deg,#3a7d44,#4e9e5a); color:#fff; border:none;'
                                 : 'background: var(--vd-bg-2); color: var(--vd-muted); border: 1px solid var(--vd-bdr);'">
-                        250g<br>
-                        <span style="font-size:11px; font-weight:400;">${{ number_format($m->precio_250g, 0, ',', '.') }}</span>
+                        250 Kcal<br>
+                        <span style="font-size:11px; font-weight:400;">${{ number_format($m->precio_250kcal, 0, ',', '.') }}</span>
                     </button>
                     @endif
-                    @if($m->precio_400g)
-                    <button type="button" @click="size = '400g'"
+                    @if($m->precio_400kcal)
+                    <button type="button" @click="size = '400kcal'"
                             class="flex-1 py-2 rounded-xl text-sm font-semibold transition-all duration-150"
-                            :style="size === '400g'
+                            :style="size === '400kcal'
                                 ? 'background: linear-gradient(135deg,#3a7d44,#4e9e5a); color:#fff; border:none;'
                                 : 'background: var(--vd-bg-2); color: var(--vd-muted); border: 1px solid var(--vd-bdr);'">
-                        400g<br>
-                        <span style="font-size:11px; font-weight:400;">${{ number_format($m->precio_400g, 0, ',', '.') }}</span>
+                        400 Kcal<br>
+                        <span style="font-size:11px; font-weight:400;">${{ number_format($m->precio_400kcal, 0, ',', '.') }}</span>
                     </button>
                     @endif
                 </div>

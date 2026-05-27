@@ -53,6 +53,7 @@ class User extends Authenticatable
             'colaborador'      => 'Colaborador',
             'cocina'           => 'Cocina',
             'cliente'          => 'Cliente',
+            'bot'              => 'Agente IA',
         ];
     }
 
@@ -86,9 +87,19 @@ class User extends Authenticatable
         return $this->role === 'cliente';
     }
 
+    public function isBot(): bool
+    {
+        return $this->role === 'bot';
+    }
+
     public function ordenes(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Orden::class, 'user_id');
+    }
+
+    public function links(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(UserLink::class)->orderBy('orden')->orderBy('id');
     }
 
     public function fotoUrl(): ?string

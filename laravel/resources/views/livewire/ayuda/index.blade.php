@@ -104,7 +104,7 @@ new #[Layout('layouts.app', ['title' => 'Ayuda'])] class extends Component {
                 'icono'  => '<path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/>',
                 'items'  => [
                     'Catálogo de 5 tipos de menú semanal: Clásico, Vegano, Keto, Familiar y Diabético.',
-                    'Cada menú tiene platos configurables de lunes a viernes con precios para porciones de 250g y 400g.',
+                    'Cada menú tiene platos configurables de lunes a viernes con precios para porciones de 250 Kcal y 400 Kcal.',
                     '"Sincronizar menús en Zonas" copia el menú completo de la semana a las zonas seleccionadas.',
                     '"Sincronizar precios en Zonas" actualiza solo los precios sin tocar el contenido de los platos.',
                     'Las zonas destinatarias de la sincronización se configuran en Ajustes → Zonas para sincronización.',

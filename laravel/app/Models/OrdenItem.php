@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class OrdenItem extends Model
 {
-    public const TAMANOS = ['250g' => '250g', '400g' => '400g'];
+    public const TAMANOS = ['250kcal' => '250 Kcal', '400kcal' => '400 Kcal'];
 
     public const FORMAS_PAGO = [
         'no_definido'  => 'No definido',

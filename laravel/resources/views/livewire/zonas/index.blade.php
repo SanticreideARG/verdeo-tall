@@ -21,10 +21,11 @@ new #[Layout('layouts.app', ['title' => 'Zonas'])] class extends Component {
     // ── Form fields ──────────────────────────────────────────────────────────
     public string  $nombre          = '';
     public string  $alcance         = '';
+    public string  $ciudad          = '';
     public string  $caracteristica  = '';
     public ?int    $responsable_id  = null;
-    public string  $precio_400g     = '';
-    public string  $precio_250g     = '';
+    public string  $precio_400kcal  = '';
+    public string  $precio_250kcal  = '';
     public array   $menus_semanales = [];
     public bool    $activa          = true;
     public string  $whatsapp        = '';
@@ -66,10 +67,11 @@ new #[Layout('layouts.app', ['title' => 'Zonas'])] class extends Component {
         $this->editingId        = $id;
         $this->nombre           = $zona->nombre;
         $this->alcance          = $zona->alcance ?? '';
+        $this->ciudad           = $zona->ciudad ?? '';
         $this->caracteristica   = $zona->caracteristica ?? '';
         $this->responsable_id   = $zona->responsable_id;
-        $this->precio_400g      = $zona->precio_400g !== null ? (string) $zona->precio_400g : '';
-        $this->precio_250g      = $zona->precio_250g !== null ? (string) $zona->precio_250g : '';
+        $this->precio_400kcal   = $zona->precio_400kcal !== null ? (string) $zona->precio_400kcal : '';
+        $this->precio_250kcal   = $zona->precio_250kcal !== null ? (string) $zona->precio_250kcal : '';
         $this->menus_semanales  = $this->normalizeMenus($zona->menus_semanales ?? []);
         $this->activa           = $zona->activa;
         $this->whatsapp         = $zona->whatsapp ?? '';
@@ -98,10 +100,11 @@ new #[Layout('layouts.app', ['title' => 'Zonas'])] class extends Component {
         $this->validate([
             'nombre'         => 'required|min:2|max:100',
             'alcance'        => 'nullable|max:200',
+            'ciudad'         => 'nullable|max:80',
             'caracteristica' => 'nullable|max:1000',
             'responsable_id' => 'nullable|exists:users,id',
-            'precio_400g'    => 'nullable|integer|min:0',
-            'precio_250g'    => 'nullable|integer|min:0',
+            'precio_400kcal' => 'nullable|integer|min:0',
+            'precio_250kcal' => 'nullable|integer|min:0',
             'whatsapp'       => 'nullable|max:30',
             'fotoFile'       => 'nullable|image|max:3072',
         ], [
@@ -127,10 +130,11 @@ new #[Layout('layouts.app', ['title' => 'Zonas'])] class extends Component {
         $data = [
             'nombre'          => $this->nombre,
             'alcance'         => $this->alcance ?: null,
+            'ciudad'          => $this->ciudad ?: null,
             'caracteristica'  => $this->caracteristica ?: null,
             'responsable_id'  => $this->responsable_id ?: null,
-            'precio_400g'     => $this->precio_400g !== '' ? (int) $this->precio_400g : null,
-            'precio_250g'     => $this->precio_250g !== '' ? (int) $this->precio_250g : null,
+            'precio_400kcal'  => $this->precio_400kcal !== '' ? (int) $this->precio_400kcal : null,
+            'precio_250kcal'  => $this->precio_250kcal !== '' ? (int) $this->precio_250kcal : null,
             'menus_semanales' => $menus ?: null,
             'activa'          => $this->activa,
             'whatsapp'        => $this->whatsapp ?: null,
@@ -218,10 +222,11 @@ new #[Layout('layouts.app', ['title' => 'Zonas'])] class extends Component {
     {
         $this->nombre          = '';
         $this->alcance         = '';
+        $this->ciudad          = '';
         $this->caracteristica  = '';
         $this->responsable_id  = null;
-        $this->precio_400g     = '';
-        $this->precio_250g     = '';
+        $this->precio_400kcal  = '';
+        $this->precio_250kcal  = '';
         $this->menus_semanales = [];
         $this->activa          = true;
         $this->whatsapp        = '';
@@ -316,17 +321,17 @@ new #[Layout('layouts.app', ['title' => 'Zonas'])] class extends Component {
                     </div>
                 </div>
 
-                @if($zona->precio_400g || $zona->precio_250g)
+                @if($zona->precio_400kcal || $zona->precio_250kcal)
                 <div class="rounded-lg px-2.5 py-2" style="background: rgba(200,160,48,0.06); border: 1px solid rgba(200,160,48,0.2);">
                     <p class="text-xs mb-1.5 font-condensed uppercase tracking-wide" style="color: rgba(200,160,48,0.8); letter-spacing: 1px; font-size: 10px;">Precio de Menús</p>
                     <div class="flex gap-5 text-xs">
                         <div>
-                            <span style="color: var(--vd-muted); font-size: 10px;">400g</span>
-                            <p class="font-condensed font-bold" style="color: #c8a030;">{{ $zona->precioFormateado('400g') }}</p>
+                            <span style="color: var(--vd-muted); font-size: 10px;">400 Kcal</span>
+                            <p class="font-condensed font-bold" style="color: #c8a030;">{{ $zona->precioFormateado('400kcal') }}</p>
                         </div>
                         <div>
-                            <span style="color: var(--vd-muted); font-size: 10px;">250g</span>
-                            <p class="font-condensed font-bold" style="color: #c8a030;">{{ $zona->precioFormateado('250g') }}</p>
+                            <span style="color: var(--vd-muted); font-size: 10px;">250 Kcal</span>
+                            <p class="font-condensed font-bold" style="color: #c8a030;">{{ $zona->precioFormateado('250kcal') }}</p>
                         </div>
                     </div>
                 </div>
@@ -461,11 +466,22 @@ new #[Layout('layouts.app', ['title' => 'Zonas'])] class extends Component {
                     </div>
                 </div>
 
-                {{-- Alcance --}}
-                <div>
-                    <label class="label">Alcance</label>
-                    <input type="text" wire:model="alcance" class="input"
-                           placeholder="Ej: CABA y GBA norte · reparto propio">
+                {{-- Ciudad + Alcance --}}
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="label">
+                            Ciudad
+                            <span class="ml-1 text-xs font-normal" style="color: var(--vd-muted);">(agrupa zonas en Cocina)</span>
+                        </label>
+                        <input type="text" wire:model="ciudad" class="input"
+                               placeholder="Ej: Buenos Aires">
+                        @error('ciudad') <p class="text-xs mt-1" style="color:#fca5a5;">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="label">Alcance</label>
+                        <input type="text" wire:model="alcance" class="input"
+                               placeholder="Ej: CABA y GBA norte · reparto propio">
+                    </div>
                 </div>
 
                 {{-- Característica --}}
@@ -497,26 +513,26 @@ new #[Layout('layouts.app', ['title' => 'Zonas'])] class extends Component {
                     <label class="label">Precio de menús</label>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="text-xs mb-1 block" style="color: var(--vd-muted);">Menú 400g</label>
+                            <label class="text-xs mb-1 block" style="color: var(--vd-muted);">Menú 400 Kcal</label>
                             <div class="relative">
                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm pointer-events-none select-none"
                                       style="color: var(--vd-muted);">$</span>
-                                <input type="number" wire:model="precio_400g"
-                                       class="input pl-7 @error('precio_400g') border-red-400 @enderror"
+                                <input type="number" wire:model="precio_400kcal"
+                                       class="input pl-7 @error('precio_400kcal') border-red-400 @enderror"
                                        placeholder="80000" min="0">
                             </div>
-                            @error('precio_400g') <p class="text-xs mt-1" style="color:#fca5a5;">{{ $message }}</p> @enderror
+                            @error('precio_400kcal') <p class="text-xs mt-1" style="color:#fca5a5;">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="text-xs mb-1 block" style="color: var(--vd-muted);">Menú 250g</label>
+                            <label class="text-xs mb-1 block" style="color: var(--vd-muted);">Menú 250 Kcal</label>
                             <div class="relative">
                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm pointer-events-none select-none"
                                       style="color: var(--vd-muted);">$</span>
-                                <input type="number" wire:model="precio_250g"
-                                       class="input pl-7 @error('precio_250g') border-red-400 @enderror"
+                                <input type="number" wire:model="precio_250kcal"
+                                       class="input pl-7 @error('precio_250kcal') border-red-400 @enderror"
                                        placeholder="65000" min="0">
                             </div>
-                            @error('precio_250g') <p class="text-xs mt-1" style="color:#fca5a5;">{{ $message }}</p> @enderror
+                            @error('precio_250kcal') <p class="text-xs mt-1" style="color:#fca5a5;">{{ $message }}</p> @enderror
                         </div>
                     </div>
                 </div>

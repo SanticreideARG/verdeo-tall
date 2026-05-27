@@ -2,9 +2,10 @@
 
 namespace App\Services;
 
+use App\Contracts\AiServiceInterface;
 use Illuminate\Support\Facades\Http;
 
-class ClaudeService
+class ClaudeService implements AiServiceInterface
 {
     use BuildsSystemPrompt;
 
@@ -15,11 +16,11 @@ class ClaudeService
     public function __construct()
     {
         $this->apiKey = config('services.anthropic.key', '');
-        $this->model  = config('services.anthropic.model', 'claude-haiku-4-5-20251001');
+        $this->model  = config('services.anthropic.model', 'claude-sonnet-4-6');
     }
 
     /**
-     * Multi-turn chat. Accepts the same message format as OllamaService.
+     * Multi-turn chat using Anthropic Messages API.
      * System messages are extracted and sent as the top-level 'system' field.
      */
     public function chat(array $messages, array $options = []): string
@@ -70,5 +71,10 @@ class ClaudeService
     public function getModel(): string
     {
         return $this->model;
+    }
+
+    public function getProviderName(): string
+    {
+        return 'claude';
     }
 }

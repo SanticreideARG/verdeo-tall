@@ -4,7 +4,7 @@ use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
 use Livewire\WithPagination;
 use App\Models\Conversacion;
-use App\Services\OllamaService;
+use App\Services\AiRouter;
 
 new #[Layout('layouts.app', ['title' => 'Conversaciones'])] class extends Component {
 
@@ -80,10 +80,11 @@ new #[Layout('layouts.app', ['title' => 'Conversaciones'])] class extends Compon
         return compact('conversaciones', 'counts', 'canalCounts');
     }
 
-    public function sugerirRespuesta(int $id, OllamaService $ollama): void
+    public function sugerirRespuesta(int $id, AiRouter $ai): void
     {
-        if (! $ollama->isAvailable()) {
-            $this->sugerenciaTexto   = 'Ollama no está disponible en este momento.';
+        $available = $ai->available();
+        if (empty($available)) {
+            $this->sugerenciaTexto   = 'No hay proveedor IA configurado. Agregá una API key en Ajustes → IA.';
             $this->sugerenciaId      = $id;
             $this->sugerenciaMensaje = '';
             return;
@@ -97,7 +98,7 @@ new #[Layout('layouts.app', ['title' => 'Conversaciones'])] class extends Compon
 
         try {
             $context = "Cliente: {$conv->nombre}, Teléfono: {$conv->telefono}, Zona: {$conv->zona}, Estado: {$conv->estado}";
-            $this->sugerenciaTexto = $ollama->suggestReply($conv->ultimo_mensaje ?? '', $context);
+            $this->sugerenciaTexto = $ai->suggestReply($conv->ultimo_mensaje ?? '', $context);
         } catch (\Throwable $e) {
             $this->sugerenciaTexto = 'Error al generar sugerencia: ' . $e->getMessage();
         } finally {

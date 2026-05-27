@@ -6,6 +6,7 @@ use App\Models\Setting;
 use App\Models\Zona;
 use App\Models\Producto;
 use App\Models\Plato;
+use App\Services\BotPermissions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
@@ -92,8 +93,11 @@ new #[Layout('layouts.app', ['title' => 'Ajustes'])] class extends Component {
     public ?string $instagramTestResult   = null;
     public string  $instagramTestMsg      = '';
 
-    public string $tema     = 'bosque';
-    public bool   $guardado = false;
+    public string $tema       = 'bosque';
+    public bool   $guardado   = false;
+
+    // ── Agente Bot ─────────────────────────────────────────────────────────────
+    public array $botPermisos = [];   // ['capability_key' => bool]
 
     // ── Servidor (Alice / Betty) ───────────────────────────────────────────────
     public string  $servidor       = 'alice';
@@ -176,6 +180,9 @@ new #[Layout('layouts.app', ['title' => 'Ajustes'])] class extends Component {
             $decoded = json_decode($stored, true);
             $this->$key = is_array($decoded) ? $decoded : ($stored ? [$stored] : []);
         }
+
+        // Bot permissions
+        $this->botPermisos = BotPermissions::currentState();
     }
 
     public function updatedChatbotIaProveedor(): void
@@ -357,16 +364,28 @@ new #[Layout('layouts.app', ['title' => 'Ajustes'])] class extends Component {
         }
     }
 
+    /**
+     * Toggle a single bot capability immediately (no "Guardar" needed).
+     * Planificado capabilities are silently ignored.
+     */
+    public function toggleBotPermiso(string $capability): void
+    {
+        if (! auth()->user()->isAdmin()) return;
+
+        $new = BotPermissions::toggle($capability);
+        $this->botPermisos[$capability] = $new;
+    }
+
     public function guardar(): void
     {
         $rules = [
             'app_nombre'               => 'required|min:2|max:60',
             'timezone'                 => 'required|timezone',
-            'chatbot_ia_proveedor'     => 'required|in:claude,gpt,ollama',
+            'chatbot_ia_proveedor'     => 'required|in:claude,gpt,gemini',
             'chatbot_ia_modelo'        => 'required|string|max:80',
             'chatbot_ia_prompt'        => 'nullable|max:2000',
             'chatbot_ia_temperatura'   => 'required|numeric|min:0|max:1',
-            'asistente_ia_proveedor'   => 'required|in:claude,gpt,ollama',
+            'asistente_ia_proveedor'   => 'required|in:claude,gpt,gemini',
             'asistente_ia_modelo'      => 'required|string|max:80',
             'asistente_ia_temperatura' => 'required|numeric|min:0|max:1',
         ];
@@ -375,7 +394,7 @@ new #[Layout('layouts.app', ['title' => 'Ajustes'])] class extends Component {
         foreach (['chatbot', 'asistente'] as $ctx) {
             $prov  = $ctx === 'chatbot' ? $this->chatbot_ia_proveedor : $this->asistente_ia_proveedor;
             $field = "{$ctx}_ia_api_key";
-            if (in_array($prov, ['claude', 'gpt'])) {
+            if (in_array($prov, ['claude', 'gpt', 'gemini'])) {
                 $existing = Setting::get($field, '');
                 if (!empty($this->$field) || empty($existing)) {
                     $rules[$field] = 'required|min:20|max:300';
@@ -865,6 +884,16 @@ new #[Layout('layouts.app', ['title' => 'Ajustes'])] class extends Component {
                         </svg>
                         Asistente interno
                     </button>
+                    <button type="button" @click="tab = 'bot'"
+                            class="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-semibold transition-all"
+                            :style="tab === 'bot'
+                                ? 'background: rgba(168,85,247,0.18); color: #a855f7; border: 1px solid rgba(168,85,247,0.35);'
+                                : 'color: var(--vd-muted); border: 1px solid transparent;'">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5"/>
+                        </svg>
+                        Agente Bot
+                    </button>
                 </div>
 
                 {{-- ── TAB: CHATBOT ──────────────────────────────────────────────── --}}
@@ -876,9 +905,9 @@ new #[Layout('layouts.app', ['title' => 'Ajustes'])] class extends Component {
                         <label class="label mb-2">Proveedor</label>
                         <div class="grid grid-cols-3 gap-2">
                             @foreach([
-                                'claude'  => ['label' => 'Claude',  'sub' => 'Anthropic',    'color' => '#a855f7', 'char' => 'C'],
-                                'gpt'     => ['label' => 'GPT',     'sub' => 'OpenAI',       'color' => '#10b981', 'char' => 'G'],
-                                'ollama'  => ['label' => 'Ollama',  'sub' => 'Local / gratis','color' => '#f59e0b', 'char' => 'O'],
+                                'claude'  => ['label' => 'Claude',  'sub' => 'Anthropic', 'color' => '#a855f7', 'char' => 'C'],
+                                'gpt'     => ['label' => 'GPT',     'sub' => 'OpenAI',    'color' => '#10b981', 'char' => 'G'],
+                                'gemini'  => ['label' => 'Gemini',  'sub' => 'Google',    'color' => '#60a5fa', 'char' => '✦'],
                             ] as $prov => $info)
                             <button type="button" wire:click="$set('chatbot_ia_proveedor', '{{ $prov }}')"
                                     class="flex flex-col items-center gap-2 py-3 px-2 rounded-xl border transition-all"
@@ -903,7 +932,7 @@ new #[Layout('layouts.app', ['title' => 'Ajustes'])] class extends Component {
                         <p class="text-xs mt-2 px-1" style="color: var(--vd-muted);">
                             @if($chatbot_ia_proveedor === 'claude') Mejor comprensión contextual y respuestas largas. Requiere API key de Anthropic.
                             @elseif($chatbot_ia_proveedor === 'gpt') Ampliamente adoptado, buen equilibrio velocidad/costo. Requiere API key de OpenAI.
-                            @else Corre en tu servidor, sin costo adicional por token. Privacidad total. @endif
+                            @else Modelos multimodales de Google. Excelente velocidad y costo. Requiere API key de Google AI Studio. @endif
                         </p>
                     </div>
 
@@ -921,24 +950,22 @@ new #[Layout('layouts.app', ['title' => 'Ajustes'])] class extends Component {
                                 <option value="gpt-4-turbo"   style="background:var(--vd-bg-2);color:var(--vd-text);">GPT-4 Turbo</option>
                                 <option value="gpt-3.5-turbo" style="background:var(--vd-bg-2);color:var(--vd-text);">GPT-3.5 Turbo</option>
                             @else
-                                <option value="mistral"   style="background:var(--vd-bg-2);color:var(--vd-text);">Mistral 7B ✓</option>
-                                <option value="llama3"    style="background:var(--vd-bg-2);color:var(--vd-text);">Llama 3 8B</option>
-                                <option value="phi3"      style="background:var(--vd-bg-2);color:var(--vd-text);">Phi-3 Mini</option>
-                                <option value="gemma2"    style="background:var(--vd-bg-2);color:var(--vd-text);">Gemma 2 9B</option>
-                                <option value="llava"     style="background:var(--vd-bg-2);color:var(--vd-text);">LLaVA (multimodal)</option>
-                                <option value="codellama" style="background:var(--vd-bg-2);color:var(--vd-text);">Code Llama</option>
+                                <option value="gemini-2.0-flash"      style="background:var(--vd-bg-2);color:var(--vd-text);">Gemini 2.0 Flash ✓</option>
+                                <option value="gemini-2.0-flash-lite" style="background:var(--vd-bg-2);color:var(--vd-text);">Gemini 2.0 Flash Lite — muy económico</option>
+                                <option value="gemini-1.5-pro"        style="background:var(--vd-bg-2);color:var(--vd-text);">Gemini 1.5 Pro — contexto largo</option>
+                                <option value="gemini-1.5-flash"      style="background:var(--vd-bg-2);color:var(--vd-text);">Gemini 1.5 Flash</option>
                             @endif
                         </select>
                         @error('chatbot_ia_modelo') <p class="text-xs mt-1" style="color:#fca5a5;">{{ $message }}</p> @enderror
                     </div>
 
-                    {{-- API Key (solo si no es Ollama) --}}
-                    @if($chatbot_ia_proveedor !== 'ollama')
+                    {{-- API Key --}}
+                    @if(true)
                     <div class="mb-5" x-data="{ show: false, cambiar: false }">
                         <label class="label">
                             API Key
                             <span class="ml-1 text-xs font-normal" style="color: var(--vd-muted);">
-                                ({{ $chatbot_ia_proveedor === 'claude' ? 'console.anthropic.com' : 'platform.openai.com' }})
+                                ({{ $chatbot_ia_proveedor === 'claude' ? 'console.anthropic.com' : ($chatbot_ia_proveedor === 'gpt' ? 'platform.openai.com' : 'aistudio.google.com') }})
                             </span>
                         </label>
                         @if($chatbotHasKey && empty($chatbot_ia_api_key))
@@ -1023,9 +1050,9 @@ new #[Layout('layouts.app', ['title' => 'Ajustes'])] class extends Component {
                         <label class="label mb-2">Proveedor</label>
                         <div class="grid grid-cols-3 gap-2">
                             @foreach([
-                                'claude'  => ['label' => 'Claude',  'sub' => 'Anthropic',    'color' => '#a855f7', 'char' => 'C'],
-                                'gpt'     => ['label' => 'GPT',     'sub' => 'OpenAI',       'color' => '#10b981', 'char' => 'G'],
-                                'ollama'  => ['label' => 'Ollama',  'sub' => 'Local / gratis','color' => '#f59e0b', 'char' => 'O'],
+                                'claude'  => ['label' => 'Claude',  'sub' => 'Anthropic', 'color' => '#a855f7', 'char' => 'C'],
+                                'gpt'     => ['label' => 'GPT',     'sub' => 'OpenAI',    'color' => '#10b981', 'char' => 'G'],
+                                'gemini'  => ['label' => 'Gemini',  'sub' => 'Google',    'color' => '#60a5fa', 'char' => '✦'],
                             ] as $prov => $info)
                             <button type="button" wire:click="$set('asistente_ia_proveedor', '{{ $prov }}')"
                                     class="flex flex-col items-center gap-2 py-3 px-2 rounded-xl border transition-all"
@@ -1047,9 +1074,9 @@ new #[Layout('layouts.app', ['title' => 'Ajustes'])] class extends Component {
                             @endforeach
                         </div>
                         <p class="text-xs mt-2 px-1" style="color: var(--vd-muted);">
-                            @if($asistente_ia_proveedor === 'claude') Mayor precisión en análisis y generación de contenido interno.
+                            @if($asistente_ia_proveedor === 'claude') Mayor precisión en análisis y generación de contenido interno. Requiere API key de Anthropic.
                             @elseif($asistente_ia_proveedor === 'gpt') Ampliamente adoptado, buen equilibrio velocidad/costo. Requiere API key de OpenAI.
-                            @else Corre en tu servidor, sin costo adicional por token. Privacidad total. @endif
+                            @else Modelos multimodales de Google. Excelente velocidad y costo. Requiere API key de Google AI Studio. @endif
                         </p>
                     </div>
 
@@ -1067,24 +1094,22 @@ new #[Layout('layouts.app', ['title' => 'Ajustes'])] class extends Component {
                                 <option value="gpt-4-turbo"   style="background:var(--vd-bg-2);color:var(--vd-text);">GPT-4 Turbo</option>
                                 <option value="gpt-3.5-turbo" style="background:var(--vd-bg-2);color:var(--vd-text);">GPT-3.5 Turbo</option>
                             @else
-                                <option value="mistral"   style="background:var(--vd-bg-2);color:var(--vd-text);">Mistral 7B ✓</option>
-                                <option value="llama3"    style="background:var(--vd-bg-2);color:var(--vd-text);">Llama 3 8B</option>
-                                <option value="phi3"      style="background:var(--vd-bg-2);color:var(--vd-text);">Phi-3 Mini</option>
-                                <option value="gemma2"    style="background:var(--vd-bg-2);color:var(--vd-text);">Gemma 2 9B</option>
-                                <option value="llava"     style="background:var(--vd-bg-2);color:var(--vd-text);">LLaVA (multimodal)</option>
-                                <option value="codellama" style="background:var(--vd-bg-2);color:var(--vd-text);">Code Llama</option>
+                                <option value="gemini-2.0-flash"      style="background:var(--vd-bg-2);color:var(--vd-text);">Gemini 2.0 Flash ✓</option>
+                                <option value="gemini-2.0-flash-lite" style="background:var(--vd-bg-2);color:var(--vd-text);">Gemini 2.0 Flash Lite — muy económico</option>
+                                <option value="gemini-1.5-pro"        style="background:var(--vd-bg-2);color:var(--vd-text);">Gemini 1.5 Pro — contexto largo</option>
+                                <option value="gemini-1.5-flash"      style="background:var(--vd-bg-2);color:var(--vd-text);">Gemini 1.5 Flash</option>
                             @endif
                         </select>
                         @error('asistente_ia_modelo') <p class="text-xs mt-1" style="color:#fca5a5;">{{ $message }}</p> @enderror
                     </div>
 
                     {{-- API Key --}}
-                    @if($asistente_ia_proveedor !== 'ollama')
+                    @if(true)
                     <div class="mb-5" x-data="{ show: false, cambiar: false }">
                         <label class="label">
                             API Key
                             <span class="ml-1 text-xs font-normal" style="color: var(--vd-muted);">
-                                ({{ $asistente_ia_proveedor === 'claude' ? 'console.anthropic.com' : 'platform.openai.com' }})
+                                ({{ $asistente_ia_proveedor === 'claude' ? 'console.anthropic.com' : ($asistente_ia_proveedor === 'gpt' ? 'platform.openai.com' : 'aistudio.google.com') }})
                             </span>
                         </label>
                         @if($asistenteHasKey && empty($asistente_ia_api_key))
@@ -1139,6 +1164,128 @@ new #[Layout('layouts.app', ['title' => 'Ajustes'])] class extends Component {
                             <span>Conservador (preciso)</span>
                             <span>Creativo (variado)</span>
                         </div>
+                    </div>
+                </div>
+
+                {{-- ── TAB: AGENTE BOT ──────────────────────────────────────────── --}}
+                <div x-show="tab === 'bot'" x-transition:enter="transition ease-out duration-150"
+                     x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
+
+                    {{-- Descripción --}}
+                    <div class="mb-6 p-4 rounded-xl flex items-start gap-3"
+                         style="background: rgba(168,85,247,0.07); border: 1px solid rgba(168,85,247,0.2);">
+                        <svg width="18" height="18" fill="none" stroke="#a855f7" stroke-width="1.8" viewBox="0 0 24 24" class="flex-shrink-0 mt-0.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"/>
+                        </svg>
+                        <div>
+                            <p class="text-sm font-semibold mb-1" style="color: #c084fc;">Permisos del Agente IA</p>
+                            <p class="text-xs leading-relaxed" style="color: var(--vd-muted);">
+                                Definí qué acciones puede ejecutar el bot de forma autónoma. Los cambios son inmediatos.
+                                Las funciones <span class="font-semibold" style="color: var(--vd-muted);">planificadas</span> no están disponibles aún y aparecen deshabilitadas.
+                            </p>
+                        </div>
+                    </div>
+
+                    @php $catalog = BotPermissions::catalog(); @endphp
+
+                    <div class="space-y-6">
+                    @foreach($catalog as $groupKey => $group)
+                        {{-- Group header --}}
+                        <div>
+                            <div class="flex items-center gap-2 mb-3">
+                                <div class="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
+                                     style="background: {{ $group['color'] }}22; border: 1px solid {{ $group['color'] }}44;">
+                                    <svg width="12" height="12" fill="none" stroke="{{ $group['color'] }}" stroke-width="1.8" viewBox="0 0 24 24">
+                                        {!! $group['icon'] !!}
+                                    </svg>
+                                </div>
+                                <span class="text-xs font-bold uppercase tracking-widest"
+                                      style="color: {{ $group['color'] }}; letter-spacing: 1.5px;">
+                                    {{ $group['label'] }}
+                                </span>
+                            </div>
+
+                            <div class="space-y-2 ml-0">
+                            @foreach($group['items'] as $capKey => $cap)
+                                @php
+                                    $isPlanificado = $cap['status'] === \App\Services\BotPermissions::STATUS_PLANIFICADO;
+                                    $isEnabled     = $botPermisos[$capKey] ?? false;
+                                @endphp
+                                <div class="flex items-start justify-between gap-4 p-3 rounded-xl transition-all"
+                                     style="{{ $isEnabled && !$isPlanificado
+                                         ? 'background: rgba(168,85,247,0.07); border: 1px solid rgba(168,85,247,0.2);'
+                                         : 'background: rgba(0,0,0,0.05); border: 1px solid var(--vd-bdr-soft);' }}
+                                         {{ $isPlanificado ? 'opacity: 0.55;' : '' }}">
+
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="text-sm font-semibold" style="color: var(--vd-text);">
+                                                {{ $cap['label'] }}
+                                            </span>
+
+                                            {{-- Status badge --}}
+                                            @if($isPlanificado)
+                                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                                                  style="background: rgba(107,114,128,0.15); color: #6b7280; border: 1px solid rgba(107,114,128,0.25);">
+                                                Planificado
+                                            </span>
+                                            @elseif($cap['status'] === \App\Services\BotPermissions::STATUS_REQUIERE)
+                                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                                                  style="background: rgba(234,179,8,0.1); color: #facc15; border: 1px solid rgba(234,179,8,0.25);">
+                                                Requiere config
+                                            </span>
+                                            @else
+                                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                                                  style="background: rgba(78,158,90,0.1); color: #4e9e5a; border: 1px solid rgba(78,158,90,0.25);">
+                                                Operativo
+                                            </span>
+                                            @endif
+                                        </div>
+
+                                        <p class="text-xs mt-0.5" style="color: var(--vd-muted);">
+                                            {{ $cap['descripcion'] }}
+                                        </p>
+
+                                        @if(!empty($cap['requiere']))
+                                        <div class="flex flex-wrap gap-1 mt-1.5">
+                                            @foreach($cap['requiere'] as $req)
+                                            <span class="text-[10px] px-1.5 py-0.5 rounded font-mono"
+                                                  style="background: rgba(0,0,0,0.15); color: var(--vd-muted-2); border: 1px solid var(--vd-bdr-soft);">
+                                                {{ $req }}
+                                            </span>
+                                            @endforeach
+                                        </div>
+                                        @endif
+                                    </div>
+
+                                    {{-- Toggle --}}
+                                    <button type="button"
+                                            @if(!$isPlanificado) wire:click="toggleBotPermiso('{{ $capKey }}')" @endif
+                                            @disabled($isPlanificado)
+                                            class="flex-shrink-0 w-11 h-6 rounded-full relative transition-all duration-200 focus:outline-none"
+                                            style="{{ $isPlanificado ? 'cursor: not-allowed;' : 'cursor: pointer;' }}
+                                                   background: {{ ($isEnabled && !$isPlanificado) ? '#a855f7' : 'rgba(107,114,128,0.3)' }};
+                                                   border: 1px solid {{ ($isEnabled && !$isPlanificado) ? '#a855f7' : 'var(--vd-bdr)' }};"
+                                            title="{{ $isPlanificado ? 'No disponible aún' : ($isEnabled ? 'Deshabilitar' : 'Habilitar') }}">
+                                        <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform duration-200 shadow-sm"
+                                              style="background: #fff;
+                                                     transform: translateX({{ ($isEnabled && !$isPlanificado) ? '20px' : '0px' }});"></span>
+                                    </button>
+                                </div>
+                            @endforeach
+                            </div>
+                        </div>
+                    @endforeach
+                    </div>
+
+                    {{-- Bot user info --}}
+                    <div class="mt-6 pt-4 flex items-center gap-2" style="border-top: 1px solid var(--vd-bdr-soft);">
+                        <svg width="13" height="13" fill="none" stroke="var(--vd-muted-2)" stroke-width="1.8" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"/>
+                        </svg>
+                        <p class="text-xs" style="color: var(--vd-muted-2);">
+                            Las acciones del bot se registran bajo el usuario <span class="font-mono">bot@verdeo.com.ar</span> en el log de actividad.
+                        </p>
                     </div>
                 </div>
 

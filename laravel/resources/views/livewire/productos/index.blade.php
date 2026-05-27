@@ -46,8 +46,8 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
     {
         foreach (Producto::orderBy('orden')->get() as $p) {
             $this->precios[$p->id] = [
-                'p250' => $p->precio_250g !== null ? (string) $p->precio_250g : '',
-                'p400' => $p->precio_400g !== null ? (string) $p->precio_400g : '',
+                'p250' => $p->precio_250kcal !== null ? (string) $p->precio_250kcal : '',
+                'p400' => $p->precio_400kcal !== null ? (string) $p->precio_400kcal : '',
             ];
         }
     }
@@ -75,8 +75,8 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
 
         foreach ($this->precios as $id => $vals) {
             Producto::where('id', $id)->update([
-                'precio_250g' => $vals['p250'] !== '' ? (float) $vals['p250'] : null,
-                'precio_400g' => $vals['p400'] !== '' ? (float) $vals['p400'] : null,
+                'precio_250kcal' => $vals['p250'] !== '' ? (float) $vals['p250'] : null,
+                'precio_400kcal' => $vals['p400'] !== '' ? (float) $vals['p400'] : null,
             ]);
         }
         session()->flash('success', 'Precios actualizados.');
@@ -278,8 +278,8 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
                 'nombre'      => $p->tipoLabel(),
                 'tipo'        => $p->tipo,
                 'descripcion' => $p->descripcion ?? '',
-                'precio_250g' => (float) $p->precio_250g,
-                'precio_400g' => (float) $p->precio_400g,
+                'precio_250kcal' => (float) $p->precio_250kcal,
+                'precio_400kcal' => (float) $p->precio_400kcal,
                 'platos'      => $p->platos->pluck('nombre')->values()->toArray(),
             ])
             ->toArray();
@@ -300,8 +300,8 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
             $menus = array_map(function ($menu) use ($productos) {
                 $p = $productos[$menu['tipo']] ?? null;
                 if ($p) {
-                    $menu['precio_250g'] = (float) $p->precio_250g;
-                    $menu['precio_400g'] = (float) $p->precio_400g;
+                    $menu['precio_250kcal'] = (float) $p->precio_250kcal;
+                    $menu['precio_400kcal'] = (float) $p->precio_400kcal;
                 }
                 return $menu;
             }, $menus);
@@ -700,7 +700,7 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
         <div class="px-6 py-4" style="border-bottom: 1px solid var(--vd-bdr-soft);">
             <h3 class="font-condensed font-bold" style="color: var(--vd-text);">Tarifas por menú</h3>
             <p class="text-xs mt-1" style="color: var(--vd-muted);">
-                Los precios se aplican automáticamente al crear nuevas órdenes según el tamaño seleccionado.
+                Los precios se aplican automáticamente al crear nuevas órdenes según las Kcal seleccionadas.
             </p>
         </div>
 
@@ -710,9 +710,9 @@ new #[Layout('layouts.app', ['title' => 'Menús'])] class extends Component {
                     <th class="text-left px-6 py-3 font-condensed text-xs uppercase tracking-wide"
                         style="color: var(--vd-muted-2);">Menú</th>
                     <th class="text-right px-6 py-3 font-condensed text-xs uppercase tracking-wide w-44"
-                        style="color: var(--vd-muted-2);">Precio 250g</th>
+                        style="color: var(--vd-muted-2);">Precio 250 Kcal</th>
                     <th class="text-right px-6 py-3 font-condensed text-xs uppercase tracking-wide w-44"
-                        style="color: var(--vd-muted-2);">Precio 400g</th>
+                        style="color: var(--vd-muted-2);">Precio 400 Kcal</th>
                 </tr>
             </thead>
             <tbody>

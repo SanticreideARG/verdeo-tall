@@ -123,11 +123,11 @@
   --vd-topbar:    rgba(240, 244, 248, 0.80);
   --vd-text:      #0f172a;
   --vd-text-soft: rgba(15, 23, 42, 0.78);
-  --vd-muted:     rgba(15, 23, 42, 0.55);
-  --vd-muted-2:   rgba(15, 23, 42, 0.35);
+  --vd-muted:     rgba(15, 23, 42, 0.68);
+  --vd-muted-2:   rgba(15, 23, 42, 0.50);
   --vd-bdr:       rgba(37, 99, 235, 0.22);
-  --vd-bdr-soft:  rgba(15, 23, 42, 0.09);
-  --vd-input-bg:  rgba(37, 99, 235, 0.04);
+  --vd-bdr-soft:  rgba(15, 23, 42, 0.14);
+  --vd-input-bg:  rgba(37, 99, 235, 0.06);
   --vd-row-hover: rgba(37, 99, 235, 0.06);
   --vd-shadow:    0 12px 40px rgba(15, 23, 42, 0.10);
   --vd-vignette:  radial-gradient(ellipse 70% 50% at 15% 0%, rgba(59,130,246,0.15), transparent 60%),
@@ -139,9 +139,9 @@
   --v-navy: #f0f4f8; --v-navy-2: #e2eaf3; --v-navy-3: #d1dff0;
   --v-green: #1d4ed8; --v-green-lt: #2563eb; --v-green-xlt: #3b82f6;
   --v-gold: #b45309; --v-white: #0f172a;
-  --v-muted: rgba(15,23,42,0.55); --v-muted-2: rgba(15,23,42,0.35);
+  --v-muted: rgba(15,23,42,0.68); --v-muted-2: rgba(15,23,42,0.50);
   --v-glass: rgba(255,255,255,0.88); --v-glass-2: rgba(255,255,255,0.97);
-  --v-bdr: rgba(37,99,235,0.22); --v-bdr-soft: rgba(15,23,42,0.09);
+  --v-bdr: rgba(37,99,235,0.22); --v-bdr-soft: rgba(15,23,42,0.14);
   --v-shadow: 0 12px 40px rgba(15,23,42,0.10);
   --v-glow: 0 0 30px rgba(37,99,235,0.15);
 }
@@ -157,11 +157,11 @@
   --vd-topbar:    rgba(255, 255, 255, 0.72);
   --vd-text:      #18351f;
   --vd-text-soft: rgba(24, 53, 31, 0.78);
-  --vd-muted:     rgba(24, 53, 31, 0.55);
-  --vd-muted-2:   rgba(24, 53, 31, 0.35);
+  --vd-muted:     rgba(24, 53, 31, 0.68);
+  --vd-muted-2:   rgba(24, 53, 31, 0.50);
   --vd-bdr:       rgba(58, 125, 68, 0.22);
-  --vd-bdr-soft:  rgba(24, 53, 31, 0.09);
-  --vd-input-bg:  rgba(58, 125, 68, 0.04);
+  --vd-bdr-soft:  rgba(24, 53, 31, 0.14);
+  --vd-input-bg:  rgba(58, 125, 68, 0.06);
   --vd-row-hover: rgba(58, 125, 68, 0.06);
   --vd-shadow:    0 12px 40px rgba(20, 50, 30, 0.10);
   --vd-vignette:  radial-gradient(ellipse 70% 50% at 15% 0%, rgba(78,158,90,0.18), transparent 60%),
@@ -175,12 +175,12 @@
   --v-navy:     #f4f7f3;  --v-navy-2:   #ebf1e9;  --v-navy-3: #dcebd8;
   --v-green:    #2d6e38;  --v-green-lt: #3a7d44;  --v-green-xlt: #4e9e5a;
   --v-gold:     #b08a20;  --v-white:    #18351f;
-  --v-muted:    rgba(24, 53, 31, 0.55);
-  --v-muted-2:  rgba(24, 53, 31, 0.35);
+  --v-muted:    rgba(24, 53, 31, 0.68);
+  --v-muted-2:  rgba(24, 53, 31, 0.50);
   --v-glass:    rgba(255, 255, 255, 0.88);
   --v-glass-2:  rgba(255, 255, 255, 0.97);
   --v-bdr:      rgba(58, 125, 68, 0.22);
-  --v-bdr-soft: rgba(24, 53, 31, 0.09);
+  --v-bdr-soft: rgba(24, 53, 31, 0.14);
   --v-shadow:   0 12px 40px rgba(20, 50, 30, 0.10);
   --v-glow:     0 0 30px rgba(58, 125, 68, 0.15);
 }
@@ -249,8 +249,9 @@
     border-color: rgba(58,125,68,0.4);
     color: var(--vd-text);
   }
-  [data-theme="light"] .theme-toggle .ic-moon { display: none; }
-  [data-theme="dark"]  .theme-toggle .ic-sun  { display: none; }
+  [data-theme="light"] .theme-toggle .ic-moon  { display: none; }
+  [data-theme="cielo"] .theme-toggle .ic-moon  { display: none; }
+  [data-theme="dark"]  .theme-toggle .ic-sun   { display: none; }
 
   /* ── Buttons ── */
   .btn {
@@ -324,7 +325,8 @@
   .input.border-red-400 { border-color: rgba(220,68,68,0.6) !important; }
   /* Native <option> elements don't inherit CSS vars in all browsers — use fixed colors */
   select.input option { background: #0f2035; color: #f0f4f0; }
-  [data-theme="light"] select.input option { background: #ebf1e9; color: #18351f; }
+  [data-theme="light"] select.input option  { background: #ebf1e9; color: #18351f; }
+  [data-theme="cielo"] select.input option  { background: #e2eaf3; color: #0f172a; }
 
   /* ── Labels ── */
   .label {
@@ -356,6 +358,9 @@
   }
   [data-theme="light"] .card::before {
     background: linear-gradient(90deg, transparent, rgba(58,125,68,0.30), transparent);
+  }
+  [data-theme="cielo"] .card::before {
+    background: linear-gradient(90deg, transparent, rgba(37,99,235,0.25), transparent);
   }
 
   /* ── Stat cards (dashboard) ── */
@@ -390,6 +395,8 @@
   .trend-down { color: #fca5a5; font-weight: 600; font-size: 12px; }
   [data-theme="light"] .trend-up   { color: var(--vd-green); }
   [data-theme="light"] .trend-down { color: #dc2626; }
+  [data-theme="cielo"] .trend-up   { color: #1d4ed8; }
+  [data-theme="cielo"] .trend-down { color: #dc2626; }
 
   /* ── Zone rows ── */
   .zone-row {
@@ -423,6 +430,7 @@
     border: 1px solid rgba(78,158,90,0.38);
   }
   [data-theme="light"] .badge-green { color: var(--vd-green); }
+  [data-theme="cielo"] .badge-green { color: #1d4ed8; }
 
   .badge-blue {
     @apply badge;
@@ -430,6 +438,7 @@
     border: 1px solid rgba(59,130,246,0.30);
   }
   [data-theme="light"] .badge-blue { color: #2563eb; }
+  [data-theme="cielo"] .badge-blue { color: #1d4ed8; }
 
   .badge-yellow {
     @apply badge;
@@ -447,6 +456,7 @@
     border: 1px solid rgba(220,68,68,0.35);
   }
   [data-theme="light"] .badge-red { color: #dc2626; }
+  [data-theme="cielo"] .badge-red { color: #dc2626; }
 
   /* ── Nav links (sidebar) ── */
   .nav-link-active {
@@ -460,6 +470,12 @@
     color: var(--vd-green);
     border-color: rgba(58,125,68,0.35);
     box-shadow: 0 2px 10px rgba(58,125,68,0.10);
+  }
+  [data-theme="cielo"] .nav-link-active {
+    background: linear-gradient(135deg, rgba(37,99,235,0.14), rgba(59,130,246,0.09));
+    color: #1d4ed8;
+    border-color: rgba(37,99,235,0.35);
+    box-shadow: 0 2px 10px rgba(37,99,235,0.10);
   }
   .nav-link-inactive {
     color: var(--vd-muted);
@@ -482,7 +498,10 @@ table thead th {
   border-bottom: 1px solid var(--vd-bdr) !important;
 }
 [data-theme="light"] table thead th {
-  background: rgba(235,241,233,0.8) !important;
+  background: rgba(235,241,233,0.85) !important;
+}
+[data-theme="cielo"] table thead th {
+  background: rgba(210,225,248,0.85) !important;
 }
 table tbody tr      { border-bottom: 1px solid var(--vd-bdr-soft) !important; transition: background 0.18s; }
 table tbody tr:hover{ background: var(--vd-row-hover) !important; }

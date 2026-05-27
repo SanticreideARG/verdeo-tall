@@ -3,285 +3,822 @@
 use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
 use App\Models\Orden;
-use App\Services\GeocodingService;
-use Carbon\Carbon;
+use App\Models\HojaRuta;
+use App\Models\Zona;
 
-new #[Layout('layouts.app', ['title' => 'Hoja de Ruta'])] class extends Component {
+new #[Layout('layouts.app', ['title' => 'Entregas'])] class extends Component {
 
-    public string $fecha = '';
-    public string $zona  = '';
-
-    // Geocoding state
-    public ?int  $geocodingId = null;
+    public string $ciudadActiva         = '';
+    public array  $ciudades             = [];
+    public array  $seleccionados        = [];
+    public bool   $showCrearHR          = false;
+    public string $transportistaNombre  = '';
+    public string $transportistaTel     = '';
+    public string $hrNotas              = '';
+    public ?int   $cancelandoHR         = null;
+    public array  $hrExpandidas         = [];
 
     public function mount(): void
     {
-        if (! (auth()->user()->isAdmin() || auth()->user()->isResponsableZona())) {
+        $user = auth()->user();
+        if (! ($user->isAdmin() || $user->isResponsableZona())) {
             $this->redirect(route('dashboard'), navigate: true);
+            return;
         }
-        $this->fecha = today()->format('Y-m-d');
-        if (auth()->user()->isResponsableZona()) {
-            $this->zona = auth()->user()->zona ?? '';
+
+        $this->ciudades     = Zona::whereNotNull('ciudad')
+                                  ->orderBy('ciudad')
+                                  ->distinct()
+                                  ->pluck('ciudad')
+                                  ->toArray();
+        $this->ciudadActiva = $this->ciudades[0] ?? '';
+        $this->preseleccionar();
+    }
+
+    private function preseleccionar(): void
+    {
+        if (! $this->ciudadActiva) return;
+        $slugs = Zona::where('ciudad', $this->ciudadActiva)->pluck('slug')->toArray();
+        $this->seleccionados = Orden::whereIn('zona', $slugs)
+            ->where('estado', 'lista_para_entrega')
+            ->whereNull('hoja_ruta_id')
+            ->pluck('id')
+            ->toArray();
+    }
+
+    public function setCiudad(string $c): void
+    {
+        $this->ciudadActiva = $c;
+        $this->showCrearHR  = false;
+        $this->cancelandoHR = null;
+        $this->preseleccionar();
+    }
+
+    public function toggleOrden(int $id): void
+    {
+        $this->seleccionados = in_array($id, $this->seleccionados)
+            ? array_values(array_filter($this->seleccionados, fn($x) => $x !== $id))
+            : [...$this->seleccionados, $id];
+    }
+
+    public function abrirCrearHR(): void
+    {
+        if (empty($this->seleccionados)) return;
+        $this->showCrearHR        = true;
+        $this->transportistaNombre = '';
+        $this->transportistaTel   = '';
+        $this->hrNotas            = '';
+    }
+
+    public function cerrarCrearHR(): void
+    {
+        $this->showCrearHR = false;
+    }
+
+    public function crearHojaRuta(): void
+    {
+        $this->validate([
+            'transportistaNombre' => 'required|min:2|max:100',
+            'transportistaTel'    => 'nullable|max:20',
+            'hrNotas'             => 'nullable|max:500',
+        ]);
+
+        $slugs   = Zona::where('ciudad', $this->ciudadActiva)->pluck('slug')->toArray();
+        $ordenes = Orden::whereIn('id', $this->seleccionados)
+            ->whereIn('zona', $slugs)
+            ->where('estado', 'lista_para_entrega')
+            ->whereNull('hoja_ruta_id')
+            ->get();
+
+        if ($ordenes->isEmpty()) {
+            session()->flash('error', 'No hay órdenes válidas disponibles.');
+            $this->showCrearHR = false;
+            return;
         }
+
+        $hr = HojaRuta::create([
+            'numero'                 => HojaRuta::generarNumero(),
+            'ciudad'                 => $this->ciudadActiva,
+            'token'                  => HojaRuta::generarToken(),
+            'expires_at'             => now()->addHours(24),
+            'creado_por'             => auth()->id(),
+            'transportista_nombre'   => $this->transportistaNombre,
+            'transportista_telefono' => $this->transportistaTel ?: null,
+            'estado'                 => 'activa',
+            'notas'                  => $this->hrNotas ?: null,
+        ]);
+
+        $ordenes->each(fn($o) => $o->update(['hoja_ruta_id' => $hr->id]));
+
+        $this->seleccionados     = [];
+        $this->showCrearHR       = false;
+        $exp = $this->hrExpandidas;
+        $exp[$hr->id] = true;
+        $this->hrExpandidas = $exp;
+
+        session()->flash('success', "HR {$hr->numero} creada con {$ordenes->count()} pedidos.");
+    }
+
+    public function confirmarEntrega(int $ordenId): void
+    {
+        $orden = Orden::findOrFail($ordenId);
+        if (! $orden->transportista_confirma_at) {
+            session()->flash('error', 'El transportista aún no confirmó esta entrega.');
+            return;
+        }
+        $orden->update(['estado' => 'entregada']);
+        session()->flash('success', 'Entrega confirmada.');
+    }
+
+    public function pedirCancelar(int $hrId): void
+    {
+        $this->cancelandoHR = $hrId;
+    }
+
+    public function cancelarHR(): void
+    {
+        if (! $this->cancelandoHR) return;
+        $hr = HojaRuta::find($this->cancelandoHR);
+        if ($hr) {
+            $hr->cancelar();
+            session()->flash('success', "HR {$hr->numero} cancelada. Pedidos liberados.");
+        }
+        $this->cancelandoHR = null;
+    }
+
+    public function toggleHR(int $hrId): void
+    {
+        $exp = $this->hrExpandidas;
+        if (isset($exp[$hrId])) {
+            unset($exp[$hrId]);
+        } else {
+            $exp[$hrId] = true;
+        }
+        $this->hrExpandidas = $exp;
     }
 
     public function with(): array
     {
-        $ordenes = Orden::whereDate('created_at', $this->fecha)
-            ->when($this->zona, fn($q) => $q->where('zona', $this->zona))
-            ->whereIn('estado', ['aprobada', 'lista_para_entrega', 'entregada'])
+        if (! $this->ciudadActiva) {
+            return [
+                'disponibles'     => collect(),
+                'hojasEnReparto'  => collect(),
+                'hojasPendConf'   => collect(),
+                'hojasHoy'        => collect(),
+            ];
+        }
+
+        $slugs = Zona::where('ciudad', $this->ciudadActiva)->pluck('slug')->toArray();
+
+        // Órdenes listas para despachar (sin HR asignada)
+        $disponibles = Orden::whereIn('zona', $slugs)
+            ->where('estado', 'lista_para_entrega')
+            ->whereNull('hoja_ruta_id')
             ->with(['items.producto', 'cliente'])
             ->orderBy('created_at')
             ->get();
 
-        $zonaCoords = [
-            'bsas'      => [-34.6037, -58.3816],
-            'valle_nqn' => [-38.9516, -68.0591],
-            'cordoba'   => [-31.4201, -64.1888],
-            'mendoza'   => [-32.8908, -68.8272],
-        ];
+        // HRs activas o en reparto
+        $hojasEnReparto = HojaRuta::where('ciudad', $this->ciudadActiva)
+            ->whereIn('estado', ['activa', 'en_reparto'])
+            ->with(['ordenes' => fn($q) => $q->with(['items.producto', 'cliente'])->orderBy('id'), 'creadoPor'])
+            ->orderByDesc('created_at')
+            ->get();
 
-        $markers = $ordenes->map(function ($o) use ($zonaCoords) {
-            $lat = $o->latitud  ?? ($zonaCoords[$o->zona][0] ?? -34.6037);
-            $lng = $o->longitud ?? ($zonaCoords[$o->zona][1] ?? -58.3816);
-            return [
-                'id'      => $o->id,
-                'numero'  => $o->numero,
-                'cliente' => $o->cliente?->nombreCompleto() ?? '—',
-                'dir'     => $o->direccion ?? '',
-                'lat'     => $lat,
-                'lng'     => $lng,
-                'real'    => $o->latitud !== null,
-                'estado'  => $o->estado,
-            ];
-        })->values()->toArray();
+        // HRs completadas con pedidos pendientes de confirmación admin
+        $hojasPendConf = HojaRuta::where('ciudad', $this->ciudadActiva)
+            ->where('estado', 'completada')
+            ->whereHas('ordenes', fn($q) => $q->whereNotIn('estado', ['entregada', 'cancelada']))
+            ->with(['ordenes' => fn($q) => $q->with(['items.producto', 'cliente'])->orderBy('id'), 'creadoPor'])
+            ->orderByDesc('created_at')
+            ->get();
 
-        $defaultLat = isset($zonaCoords[$this->zona]) ? $zonaCoords[$this->zona][0] : -34.6037;
-        $defaultLng = isset($zonaCoords[$this->zona]) ? $zonaCoords[$this->zona][1] : -58.3816;
+        // HRs finalizadas hoy (historial)
+        $hojasHoy = HojaRuta::where('ciudad', $this->ciudadActiva)
+            ->whereIn('estado', ['completada', 'cancelada'])
+            ->whereDoesntHave('ordenes', fn($q) => $q->whereNotIn('estado', ['entregada', 'cancelada']))
+            ->whereDate('created_at', today())
+            ->with(['ordenes'])
+            ->orderByDesc('created_at')
+            ->get();
 
-        return compact('ordenes', 'markers', 'defaultLat', 'defaultLng');
-    }
-
-    public function geocodificar(int $id): void
-    {
-        $orden = Orden::findOrFail($id);
-        if (! $orden->direccion) return;
-
-        $this->geocodingId = $id;
-        $geo = app(GeocodingService::class)->geocodificar($orden->direccion);
-
-        if ($geo) {
-            $orden->update(['latitud' => $geo['lat'], 'longitud' => $geo['lng']]);
-            session()->flash('success', "Coordenadas obtenidas para orden {$orden->numero}.");
-        } else {
-            session()->flash('error', "No se encontraron coordenadas para: {$orden->direccion}");
-        }
-        $this->geocodingId = null;
+        return compact('disponibles', 'hojasEnReparto', 'hojasPendConf', 'hojasHoy');
     }
 
 }; ?>
 
-<style>
-@media print {
-    .no-print { display: none !important; }
-    .print-only { display: block !important; }
-    body { background: white !important; color: black !important; }
-    .verdeo-sidebar, header, #verdeo-bg { display: none !important; }
-    main { padding: 0 !important; }
-    .card { border: 1px solid #ccc !important; background: white !important; box-shadow: none !important; }
-}
-</style>
-
 <div>
 
-    {{-- Flash --}}
-    @if(session('success'))
-    <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)"
-         class="mb-4 badge-green px-3 py-2 text-sm">{{ session('success') }}</div>
-    @endif
-    @if(session('error'))
-    <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
-         class="mb-4 px-3 py-2 text-sm rounded-xl"
-         style="background: rgba(239,68,68,0.1); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3);">
-        {{ session('error') }}
-    </div>
-    @endif
+{{-- ── Flash ──────────────────────────────────────────────────────────────────── --}}
+@if(session('success'))
+<div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)"
+     class="mb-4 badge-green px-3 py-2 text-sm">{{ session('success') }}</div>
+@endif
+@if(session('error'))
+<div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+     class="mb-4 px-3 py-2 text-sm rounded-xl"
+     style="background:rgba(239,68,68,0.1);color:#fca5a5;border:1px solid rgba(239,68,68,0.3);">
+    {{ session('error') }}
+</div>
+@endif
 
-    {{-- Toolbar --}}
-    <div class="no-print flex flex-wrap items-center gap-3 mb-6">
-        <input type="date" wire:model.live="fecha" class="input w-44">
-        <select wire:model.live="zona" class="input w-44">
-            <option value="">Todas las zonas</option>
-            <option value="bsas">Buenos Aires</option>
-            <option value="valle_nqn">Valle NQN / Roca</option>
-            <option value="cordoba">Córdoba</option>
-            <option value="mendoza">Mendoza</option>
-        </select>
-        <div class="flex-1"></div>
-        <button onclick="window.print()" class="btn-secondary no-print flex items-center gap-2">
-            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/>
+{{-- ── Tabs de ciudad ──────────────────────────────────────────────────────────── --}}
+@if(count($ciudades) > 1)
+<div class="flex gap-2 mb-6 flex-wrap">
+    @foreach($ciudades as $c)
+    <button wire:click="setCiudad('{{ $c }}')"
+            class="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+            style="{{ $ciudadActiva === $c
+                ? 'background:rgba(78,158,90,0.2);color:#4ade80;border:1px solid rgba(78,158,90,0.4);'
+                : 'background:rgba(255,255,255,0.04);color:#94a3b8;border:1px solid rgba(255,255,255,0.08);' }}">
+        {{ $c }}
+    </button>
+    @endforeach
+</div>
+@elseif(count($ciudades) === 1)
+<div class="mb-5 flex items-center gap-2">
+    <span class="text-sm font-semibold" style="color:#4ade80;">📍 {{ $ciudades[0] }}</span>
+</div>
+@endif
+
+@if(! $ciudadActiva)
+<div class="card text-center py-16">
+    <p class="text-base font-semibold mb-1" style="color:var(--vd-text-soft);">Sin ciudades configuradas</p>
+    <p class="text-sm" style="color:var(--vd-muted-2);">Asigná una ciudad a las zonas para usar esta sección.</p>
+</div>
+@else
+
+{{-- ══════════════════════════════════════════════════════
+     SECCIÓN 1 — Listos para despachar
+══════════════════════════════════════════════════════ --}}
+<div class="card mb-6">
+    {{-- Header --}}
+    <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-3">
+            <h2 class="font-bold text-base" style="color:var(--vd-text);">Listos para despachar</h2>
+            @if($disponibles->isNotEmpty())
+            <span class="text-xs font-bold px-2 py-0.5 rounded-full"
+                  style="background:rgba(78,158,90,0.15);color:#4ade80;border:1px solid rgba(78,158,90,0.3);">
+                {{ $disponibles->count() }}
+            </span>
+            @endif
+        </div>
+        @if($disponibles->isNotEmpty())
+        <button wire:click="abrirCrearHR"
+                @disabled(empty($seleccionados))
+                class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+                style="{{ empty($seleccionados)
+                    ? 'background:rgba(255,255,255,0.04);color:#475569;border:1px solid rgba(255,255,255,0.06);cursor:not-allowed;'
+                    : 'background:rgba(78,158,90,0.2);color:#4ade80;border:1px solid rgba(78,158,90,0.4);cursor:pointer;' }}">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
             </svg>
-            Imprimir
+            Crear HR
+            @if(! empty($seleccionados))
+            <span class="text-xs font-bold px-1.5 py-0.5 rounded"
+                  style="background:rgba(78,158,90,0.3);">{{ count($seleccionados) }}</span>
+            @endif
         </button>
+        @endif
     </div>
 
-    {{-- Print header --}}
-    <div class="hidden print-only mb-4">
-        <h1 style="font-size:18px;font-weight:700;">Hoja de Ruta — {{ \Carbon\Carbon::parse($fecha)->isoFormat('D/MM/YYYY') }}
-            @if($zona) — {{ match($zona) { 'bsas'=>'Buenos Aires','valle_nqn'=>'Valle NQN','cordoba'=>'Córdoba','mendoza'=>'Mendoza',default=>$zona } }} @endif
-        </h1>
-    </div>
-
-    @if($ordenes->isEmpty())
-    <div class="card text-center py-16">
-        <p class="text-lg font-condensed font-bold mb-2" style="color: var(--vd-text-soft);">Sin órdenes</p>
-        <p class="text-sm" style="color: var(--vd-muted-2);">No hay órdenes aprobadas o entregadas para esta fecha y zona.</p>
+    @if($disponibles->isEmpty())
+    <div class="text-center py-10">
+        <div class="text-4xl mb-3">✅</div>
+        <p class="text-sm font-semibold" style="color:var(--vd-text-soft);">Sin pedidos pendientes de despacho</p>
+        <p class="text-xs mt-1" style="color:var(--vd-muted-2);">Los pedidos listos para entregar aparecerán aquí.</p>
     </div>
     @else
 
-    {{-- Map (no print) --}}
-    <div class="no-print card p-0 overflow-hidden mb-6"
-         x-data="{
-             map: null,
-             init() {
-                 this.$nextTick(() => {
-                     if (typeof L === 'undefined') return;
-                     const markers = {{ Js::from($markers) }};
-                     this.map = L.map(this.$refs.map, { zoomControl: true }).setView([{{ $defaultLat }}, {{ $defaultLng }}], 12);
-                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                         attribution: '© OpenStreetMap',
-                         maxZoom: 19
-                     }).addTo(this.map);
-                     markers.forEach((m, i) => {
-                         const icon = L.divIcon({
-                             html: `<div style='background:${m.real ? '#4e9e5a' : '#c8a030'};color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;border:2px solid rgba(255,255,255,0.6);box-shadow:0 2px 8px rgba(0,0,0,0.4)'>${i+1}</div>`,
-                             className: '', iconSize: [28,28], iconAnchor: [14,14]
-                         });
-                         L.marker([m.lat, m.lng], {icon})
-                             .addTo(this.map)
-                             .bindPopup(`<b>${m.numero}</b><br>${m.cliente}<br><small>${m.dir}</small>`);
-                     });
-                     if (markers.length > 1) {
-                         const bounds = L.latLngBounds(markers.map(m => [m.lat, m.lng]));
-                         this.map.fitBounds(bounds, { padding: [30, 30] });
-                     }
-                 });
-             }
-         }">
-        <div class="px-5 py-3 flex items-center justify-between" style="border-bottom: 1px solid var(--vd-bdr);">
-            <h3 class="font-semibold text-sm" style="color: var(--vd-text);">Mapa de entregas</h3>
-            <div class="flex items-center gap-3 text-xs" style="color: var(--vd-muted-2);">
-                <span class="flex items-center gap-1.5">
-                    <span class="w-3 h-3 rounded-full inline-block" style="background:#4e9e5a;"></span> Geolocalizada
+    {{-- Seleccionar/Deseleccionar todos --}}
+    <div class="flex items-center gap-3 mb-3 pb-3" style="border-bottom:1px solid var(--vd-bdr-soft);">
+        <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox"
+                   @change="{{ count($seleccionados) === $disponibles->count() ? 'seleccionados=[]' : 'seleccionados='.json_encode($disponibles->pluck('id')->toArray()) }}"
+                   :checked="{{ count($seleccionados) === $disponibles->count() ? 'true' : 'false' }}"
+                   class="w-4 h-4 rounded accent-green-500">
+            <span class="text-xs font-semibold" style="color:var(--vd-muted);">
+                {{ count($seleccionados) === $disponibles->count() ? 'Deseleccionar todo' : 'Seleccionar todo' }}
+            </span>
+        </label>
+        @if(! empty($seleccionados) && count($seleccionados) !== $disponibles->count())
+        <span class="text-xs" style="color:var(--vd-muted-2);">
+            {{ count($seleccionados) }} de {{ $disponibles->count() }} seleccionados
+        </span>
+        @endif
+    </div>
+
+    <div class="flex flex-col gap-2">
+    @foreach($disponibles as $o)
+    @php
+        $sel = in_array($o->id, $seleccionados);
+        $fp  = $o->items->first()?->forma_pago ?? '';
+    @endphp
+    <label class="flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all"
+           style="{{ $sel
+               ? 'background:rgba(78,158,90,0.08);border:1px solid rgba(78,158,90,0.2);'
+               : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);' }}">
+
+        <input type="checkbox"
+               wire:click="toggleOrden({{ $o->id }})"
+               {{ $sel ? 'checked' : '' }}
+               class="mt-0.5 w-4 h-4 rounded accent-green-500 flex-shrink-0">
+
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="font-mono text-xs font-bold" style="color:var(--vd-text);">{{ $o->numero }}</span>
+                @if($o->cliente?->nombreCompleto())
+                <span class="text-xs" style="color:var(--vd-muted);">{{ $o->cliente->nombreCompleto() }}</span>
+                @endif
+                @if($fp === 'en_destino')
+                <span class="text-xs px-1.5 py-0.5 rounded font-semibold"
+                      style="background:rgba(234,179,8,0.15);color:#facc15;border:1px solid rgba(234,179,8,0.3);">
+                    💵 Cobrar destino
                 </span>
-                <span class="flex items-center gap-1.5">
-                    <span class="w-3 h-3 rounded-full inline-block" style="background:#c8a030;"></span> Referencia de zona
+                @endif
+            </div>
+            @if($o->direccion)
+            <p class="text-xs mt-0.5" style="color:var(--vd-muted-2);">📍 {{ $o->direccion }}</p>
+            @endif
+            <div class="flex flex-wrap gap-1 mt-1">
+                @foreach($o->items as $it)
+                <span class="text-xs px-1.5 py-0.5 rounded"
+                      style="background:rgba(255,255,255,0.06);color:var(--vd-muted);">
+                    {{ $it->cantidad }}× {{ $it->producto?->nombre ?? '—' }}
                 </span>
+                @endforeach
             </div>
         </div>
-        <div x-ref="map" style="height:320px;"></div>
+
+        <div class="text-right flex-shrink-0">
+            <p class="text-sm font-bold font-mono" style="color:var(--vd-text);">
+                ${{ number_format($o->total, 0, ',', '.') }}
+            </p>
+            <p class="text-xs" style="color:var(--vd-muted-2);">
+                {{ $o->created_at->format('d/m') }}
+            </p>
+        </div>
+    </label>
+    @endforeach
     </div>
 
-    {{-- Table --}}
-    <div class="card p-0 overflow-hidden overflow-x-auto">
-        <table class="w-full text-sm min-w-[760px]">
-            <thead style="background: var(--vd-bg-2); border-bottom: 1px solid var(--vd-bdr);">
-                <tr>
-                    <th class="text-left px-4 py-3 text-xs font-condensed font-bold uppercase tracking-wide" style="color: var(--vd-muted-2);">#</th>
-                    <th class="text-left px-4 py-3 text-xs font-condensed font-bold uppercase tracking-wide" style="color: var(--vd-muted-2);">Cliente</th>
-                    <th class="text-left px-4 py-3 text-xs font-condensed font-bold uppercase tracking-wide" style="color: var(--vd-muted-2);">Dirección</th>
-                    <th class="text-left px-4 py-3 text-xs font-condensed font-bold uppercase tracking-wide" style="color: var(--vd-muted-2);">Menús</th>
-                    <th class="text-right px-4 py-3 text-xs font-condensed font-bold uppercase tracking-wide" style="color: var(--vd-muted-2);">Precio</th>
-                    <th class="text-center px-4 py-3 text-xs font-condensed font-bold uppercase tracking-wide" style="color: var(--vd-muted-2);">Pago</th>
-                    <th class="text-center px-4 py-3 text-xs font-condensed font-bold uppercase tracking-wide no-print" style="color: var(--vd-muted-2);">Coord.</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($ordenes as $idx => $o)
-                <tr style="border-bottom: 1px solid var(--vd-bdr-soft);">
-                    <td class="px-4 py-3">
-                        <div class="flex items-center gap-2">
-                            <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                                  style="background: rgba(78,158,90,0.15); color: #4e9e5a;">{{ $idx + 1 }}</span>
-                            <span class="font-mono text-xs" style="color: var(--vd-muted);">{{ $o->numero }}</span>
-                        </div>
-                    </td>
-                    <td class="px-4 py-3">
-                        <p class="font-semibold text-xs" style="color: var(--vd-text);">{{ $o->cliente?->nombreCompleto() ?? '—' }}</p>
-                        @if($o->cliente?->whatsapp)
-                        <p class="text-xs" style="color: var(--vd-muted-2);">{{ $o->cliente->whatsapp }}</p>
-                        @endif
-                    </td>
-                    <td class="px-4 py-3">
-                        <p class="text-xs" style="color: var(--vd-text-soft);">{{ $o->direccion ?? '—' }}</p>
-                        @if($o->latitud && $o->longitud)
-                        <a href="https://www.google.com/maps?q={{ $o->latitud }},{{ $o->longitud }}"
-                           target="_blank" class="text-xs no-print" style="color: #4e9e5a;">Ver en mapa</a>
+    @endif{{-- /isEmpty disponibles --}}
+</div>
+
+{{-- ══════════════════════════════════════════════════════
+     SECCIÓN 2 — Hojas de Ruta en reparto
+══════════════════════════════════════════════════════ --}}
+@if($hojasEnReparto->isNotEmpty())
+<div class="mb-6">
+    <h2 class="font-bold text-base mb-3 flex items-center gap-2" style="color:var(--vd-text);">
+        En reparto
+        <span class="text-xs font-bold px-2 py-0.5 rounded-full"
+              style="background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.3);">
+            {{ $hojasEnReparto->count() }}
+        </span>
+    </h2>
+
+    <div class="flex flex-col gap-4">
+    @foreach($hojasEnReparto as $hr)
+    @php
+        $expanded  = isset($hrExpandidas[$hr->id]);
+        $pendConf  = $hr->ordenes->filter(fn($o) => $o->transportista_confirma_at && $o->estado !== 'entregada' && $o->estado !== 'cancelada')->count();
+        $entregadas = $hr->ordenes->where('estado', 'entregada')->count();
+        $total     = $hr->ordenes->count();
+    @endphp
+    <div class="card p-0 overflow-hidden">
+        {{-- Cabecera HR --}}
+        <div class="flex items-center gap-3 px-4 py-3 cursor-pointer"
+             wire:click="toggleHR({{ $hr->id }})"
+             style="border-bottom:{{ $expanded ? '1px solid var(--vd-bdr-soft)' : 'none' }};">
+
+            {{-- Estado indicador --}}
+            <div class="w-2 h-2 rounded-full flex-shrink-0"
+                 style="background:{{ $hr->estado === 'en_reparto' ? '#93c5fd' : '#facc15' }};
+                         box-shadow:0 0 6px {{ $hr->estado === 'en_reparto' ? 'rgba(147,197,253,0.6)' : 'rgba(250,204,21,0.6)' }};"></div>
+
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="font-mono font-bold text-sm" style="color:var(--vd-text);">{{ $hr->numero }}</span>
+                    <span class="text-xs px-1.5 py-0.5 rounded font-semibold"
+                          style="{{ $hr->estado === 'en_reparto'
+                              ? 'background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.3);'
+                              : 'background:rgba(234,179,8,0.15);color:#facc15;border:1px solid rgba(234,179,8,0.3);' }}">
+                        {{ $hr->estado === 'en_reparto' ? 'En reparto' : 'Activa' }}
+                    </span>
+                    @if($pendConf > 0)
+                    <span class="text-xs px-1.5 py-0.5 rounded font-semibold animate-pulse"
+                          style="background:rgba(78,158,90,0.2);color:#4ade80;border:1px solid rgba(78,158,90,0.4);">
+                        ✓ {{ $pendConf }} confirmar
+                    </span>
+                    @endif
+                </div>
+                <p class="text-xs mt-0.5" style="color:var(--vd-muted-2);">
+                    {{ $hr->transportista_nombre }}
+                    @if($hr->transportista_telefono) · {{ $hr->transportista_telefono }} @endif
+                    · {{ $entregadas }}/{{ $total }} pedidos
+                    · vence {{ $hr->expires_at->format('H:i') }} hs
+                </p>
+            </div>
+
+            {{-- Botones de acción (no propagan toggle) --}}
+            <div class="flex items-center gap-2" wire:click.stop>
+
+                {{-- Copiar link --}}
+                <div x-data="{ copied: false }">
+                    <button @click="
+                        navigator.clipboard.writeText('{{ $hr->publicUrl() }}');
+                        copied = true;
+                        setTimeout(() => copied = false, 2500);
+                    "
+                    class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                    style="background:rgba(59,130,246,0.12);color:#93c5fd;border:1px solid rgba(59,130,246,0.25);"
+                    title="Copiar link para transportista">
+                        <span x-show="!copied">
+                            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                        </span>
+                        <span x-show="copied">✓</span>
+                        <span x-show="!copied" class="hidden sm:inline">Link</span>
+                        <span x-show="copied">Copiado</span>
+                    </button>
+                </div>
+
+                {{-- Cancelar HR --}}
+                <button wire:click="pedirCancelar({{ $hr->id }})"
+                        class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                        style="background:rgba(239,68,68,0.1);color:#fca5a5;border:1px solid rgba(239,68,68,0.25);"
+                        title="Cancelar HR">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+
+                {{-- Toggle arrow --}}
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                     wire:click="toggleHR({{ $hr->id }})"
+                     style="color:var(--vd-muted-2);transition:transform 0.2s;{{ $expanded ? 'transform:rotate(180deg);' : '' }}">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </div>
+        </div>
+
+        {{-- Órdenes de la HR (expandible) --}}
+        @if($expanded)
+        <div class="px-4 py-3">
+            @if($hr->notas)
+            <div class="mb-3 px-3 py-2 rounded-lg text-xs" style="background:rgba(255,255,255,0.04);color:var(--vd-muted);">
+                📝 {{ $hr->notas }}
+            </div>
+            @endif
+
+            <div class="flex flex-col gap-2">
+            @foreach($hr->ordenes->sortBy('id') as $idx => $o)
+            @php
+                $transConf  = $o->transportista_confirma_at !== null;
+                $adminConf  = $o->estado === 'entregada';
+                $cancelada  = $o->estado === 'cancelada';
+                $fp         = $o->items->first()?->forma_pago ?? '';
+                $pendiente  = $transConf && ! $adminConf && ! $cancelada;
+            @endphp
+            <div class="flex items-start gap-3 p-3 rounded-xl"
+                 style="{{ $adminConf ? 'background:rgba(78,158,90,0.06);border:1px solid rgba(78,158,90,0.15);'
+                        : ($cancelada ? 'background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.1);'
+                        : ($pendiente ? 'background:rgba(78,158,90,0.1);border:1px solid rgba(78,158,90,0.25);'
+                        : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);')) }}">
+
+                {{-- Índice --}}
+                <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"
+                     style="background:{{ $adminConf ? 'rgba(78,158,90,0.25)' : 'rgba(255,255,255,0.08)' }};
+                             color:{{ $adminConf ? '#4ade80' : '#94a3b8' }};">
+                    {{ $adminConf ? '✓' : ($idx + 1) }}
+                </div>
+
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="font-mono text-xs font-semibold" style="color:var(--vd-text);">#{{ $o->numero }}</span>
+                        @if($cancelada)
+                        <span class="text-xs" style="color:#fca5a5;">Cancelada</span>
+                        @elseif($adminConf)
+                        <span class="text-xs" style="color:#4ade80;">Entregada ✓</span>
+                        @elseif($transConf)
+                        <span class="text-xs font-semibold" style="color:#4ade80;">
+                            Transportista confirmó {{ $o->transportista_confirma_at->format('H:i') }}
+                        </span>
                         @else
-                        <span class="text-xs" style="color: var(--vd-muted-2);">Sin coords</span>
+                        <span class="text-xs" style="color:var(--vd-muted-2);">En camino</span>
                         @endif
-                    </td>
-                    <td class="px-4 py-3">
+                        @if($fp === 'en_destino' && ! $adminConf && ! $cancelada)
+                        <span class="text-xs px-1 py-0.5 rounded font-semibold"
+                              style="background:rgba(234,179,8,0.15);color:#facc15;">
+                            ${{ number_format($o->total, 0, ',', '.') }} efectivo
+                        </span>
+                        @endif
+                    </div>
+                    @if($o->direccion)
+                    <p class="text-xs mt-0.5" style="color:var(--vd-muted-2);">📍 {{ $o->direccion }}</p>
+                    @endif
+                    <div class="flex flex-wrap gap-1 mt-1">
                         @foreach($o->items as $it)
-                        <p class="text-xs leading-5" style="color: var(--vd-text-soft);">
-                            {{ $it->producto?->nombre ?? '—' }} · {{ $it->tamano }}
-                            @if($it->cantidad > 1) <span style="color: var(--vd-muted-2);">x{{ $it->cantidad }}</span>@endif
-                        </p>
+                        <span class="text-xs px-1.5 py-0.5 rounded" style="background:rgba(255,255,255,0.06);color:var(--vd-muted);">
+                            {{ $it->cantidad }}× {{ $it->producto?->nombre ?? '—' }}
+                        </span>
                         @endforeach
-                    </td>
-                    <td class="px-4 py-3 text-right font-mono font-semibold text-xs" style="color: var(--vd-text);">
-                        ${{ number_format($o->total, 0, ',', '.') }}
-                    </td>
-                    <td class="px-4 py-3 text-center">
-                        @php $fp = $o->items->first()?->forma_pago ?? 'no_definido'; @endphp
-                        <span class="text-xs px-2 py-0.5 rounded-full"
-                              style="background: {{ $fp === 'transferencia' ? 'rgba(96,165,250,0.1)' : 'rgba(78,158,90,0.1)' }};
-                                     color: {{ $fp === 'transferencia' ? '#60a5fa' : '#4e9e5a' }};
-                                     border: 1px solid {{ $fp === 'transferencia' ? 'rgba(96,165,250,0.25)' : 'rgba(78,158,90,0.25)' }};">
-                            {{ match($fp) { 'transferencia'=>'Transfer.', 'en_destino'=>'Efectivo', default=>'—' } }}
-                        </span>
-                    </td>
-                    <td class="px-4 py-3 text-center no-print">
-                        @if($o->latitud && $o->longitud)
-                        <span class="text-xs font-mono" style="color: #4e9e5a;">
-                            {{ round($o->latitud, 4) }}, {{ round($o->longitud, 4) }}
-                        </span>
-                        @elseif($o->direccion)
-                        <button wire:click="geocodificar({{ $o->id }})"
-                                wire:loading.attr="disabled"
-                                wire:target="geocodificar({{ $o->id }})"
-                                class="text-xs px-2.5 py-1 rounded-lg transition-all"
-                                style="background: rgba(200,160,48,0.1); color: #c8a030; border: 1px solid rgba(200,160,48,0.25);"
-                                onmouseover="this.style.background='rgba(200,160,48,0.2)'"
-                                onmouseout="this.style.background='rgba(200,160,48,0.1)'">
-                            <span wire:loading.remove wire:target="geocodificar({{ $o->id }})">Geocodificar</span>
-                            <span wire:loading wire:target="geocodificar({{ $o->id }})">…</span>
-                        </button>
-                        @else
-                        <span class="text-xs" style="color: var(--vd-muted-2);">Sin dirección</span>
-                        @endif
-                    </td>
-                </tr>
-                @endforeach
-            </tbody>
-            <tfoot style="background: var(--vd-bg-2); border-top: 1px solid var(--vd-bdr);">
-                <tr>
-                    <td colspan="4" class="px-4 py-2 text-right text-xs font-semibold" style="color: var(--vd-muted);">
-                        {{ $ordenes->count() }} órdenes · Total:
-                    </td>
-                    <td class="px-4 py-2 text-right font-mono font-bold text-sm" style="color: var(--vd-text);">
-                        ${{ number_format($ordenes->sum('total'), 0, ',', '.') }}
-                    </td>
-                    <td colspan="2"></td>
-                </tr>
-            </tfoot>
-        </table>
+                    </div>
+                </div>
+
+                {{-- Confirmar entrega (admin side) --}}
+                @if($pendiente)
+                <button wire:click="confirmarEntrega({{ $o->id }})"
+                        wire:loading.attr="disabled"
+                        wire:target="confirmarEntrega({{ $o->id }})"
+                        class="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                        style="background:rgba(78,158,90,0.2);color:#4ade80;border:1px solid rgba(78,158,90,0.4);">
+                    <span wire:loading.remove wire:target="confirmarEntrega({{ $o->id }})">✓ Confirmar</span>
+                    <span wire:loading wire:target="confirmarEntrega({{ $o->id }})">…</span>
+                </button>
+                @endif
+
+            </div>
+            @endforeach
+            </div>
+        </div>
+        @endif{{-- /expanded --}}
     </div>
+    @endforeach
+    </div>
+</div>
+@endif{{-- /hojasEnReparto --}}
 
-    @endif
+{{-- ══════════════════════════════════════════════════════
+     SECCIÓN 3 — Pendientes de confirmación admin
+══════════════════════════════════════════════════════ --}}
+@if($hojasPendConf->isNotEmpty())
+<div class="mb-6">
+    <h2 class="font-bold text-base mb-3 flex items-center gap-2" style="color:var(--vd-text);">
+        Pendientes de confirmación
+        <span class="text-xs font-bold px-2 py-0.5 rounded-full animate-pulse"
+              style="background:rgba(78,158,90,0.2);color:#4ade80;border:1px solid rgba(78,158,90,0.4);">
+            {{ $hojasPendConf->count() }}
+        </span>
+    </h2>
 
-    {{-- Leaflet CDN — must be inside the single root element --}}
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WPaA=" crossorigin=""></script>
+    <div class="flex flex-col gap-4">
+    @foreach($hojasPendConf as $hr)
+    @php
+        $expanded   = isset($hrExpandidas[$hr->id]);
+        $sinConf    = $hr->ordenes->filter(fn($o) => ! in_array($o->estado, ['entregada', 'cancelada']))->count();
+        $entregadas = $hr->ordenes->where('estado', 'entregada')->count();
+        $total      = $hr->ordenes->count();
+    @endphp
+    <div class="card p-0 overflow-hidden" style="border-color:rgba(78,158,90,0.25);">
+        <div class="flex items-center gap-3 px-4 py-3 cursor-pointer"
+             wire:click="toggleHR({{ $hr->id }})"
+             style="background:rgba(78,158,90,0.05);border-bottom:{{ $expanded ? '1px solid rgba(78,158,90,0.2)' : 'none' }};">
+
+            <div class="w-2 h-2 rounded-full flex-shrink-0 animate-pulse"
+                 style="background:#4ade80;box-shadow:0 0 6px rgba(74,222,128,0.6);"></div>
+
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="font-mono font-bold text-sm" style="color:var(--vd-text);">{{ $hr->numero }}</span>
+                    <span class="text-xs px-1.5 py-0.5 rounded font-semibold"
+                          style="background:rgba(78,158,90,0.2);color:#4ade80;border:1px solid rgba(78,158,90,0.35);">
+                        Completada
+                    </span>
+                    <span class="text-xs font-semibold" style="color:#4ade80;">
+                        {{ $sinConf }} por confirmar
+                    </span>
+                </div>
+                <p class="text-xs mt-0.5" style="color:var(--vd-muted-2);">
+                    {{ $hr->transportista_nombre }}
+                    · {{ $entregadas }}/{{ $total }} confirmados
+                </p>
+            </div>
+
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                 style="color:var(--vd-muted-2);transition:transform 0.2s;{{ $expanded ? 'transform:rotate(180deg);' : '' }}">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </div>
+
+        @if($expanded)
+        <div class="px-4 py-3">
+            <div class="flex flex-col gap-2">
+            @foreach($hr->ordenes->sortBy('id') as $idx => $o)
+            @php
+                $adminConf  = $o->estado === 'entregada';
+                $cancelada  = $o->estado === 'cancelada';
+                $fp         = $o->items->first()?->forma_pago ?? '';
+            @endphp
+            <div class="flex items-start gap-3 p-3 rounded-xl"
+                 style="{{ $adminConf ? 'background:rgba(78,158,90,0.06);border:1px solid rgba(78,158,90,0.15);'
+                        : ($cancelada ? 'background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.1);'
+                        : 'background:rgba(78,158,90,0.1);border:1px solid rgba(78,158,90,0.25);') }}">
+
+                <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"
+                     style="background:{{ $adminConf ? 'rgba(78,158,90,0.25)' : 'rgba(78,158,90,0.15)' }};
+                             color:{{ $adminConf ? '#4ade80' : '#86efac' }};">
+                    {{ $adminConf ? '✓' : ($idx + 1) }}
+                </div>
+
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="font-mono text-xs font-semibold" style="color:var(--vd-text);">#{{ $o->numero }}</span>
+                        @if($cancelada)
+                        <span class="text-xs" style="color:#fca5a5;">Cancelada</span>
+                        @elseif($adminConf)
+                        <span class="text-xs" style="color:#4ade80;">Entregada ✓</span>
+                        @else
+                        <span class="text-xs font-semibold" style="color:#4ade80;">
+                            Transportista confirmó · esperando admin
+                        </span>
+                        @endif
+                        @if($fp === 'en_destino' && ! $adminConf && ! $cancelada)
+                        <span class="text-xs px-1 py-0.5 rounded font-semibold"
+                              style="background:rgba(234,179,8,0.15);color:#facc15;">
+                            ${{ number_format($o->total, 0, ',', '.') }} efectivo
+                        </span>
+                        @endif
+                    </div>
+                    @if($o->direccion)
+                    <p class="text-xs mt-0.5" style="color:var(--vd-muted-2);">📍 {{ $o->direccion }}</p>
+                    @endif
+                    <div class="flex flex-wrap gap-1 mt-1">
+                        @foreach($o->items as $it)
+                        <span class="text-xs px-1.5 py-0.5 rounded" style="background:rgba(255,255,255,0.06);color:var(--vd-muted);">
+                            {{ $it->cantidad }}× {{ $it->producto?->nombre ?? '—' }}
+                        </span>
+                        @endforeach
+                    </div>
+                </div>
+
+                @if(! $adminConf && ! $cancelada)
+                <button wire:click="confirmarEntrega({{ $o->id }})"
+                        wire:loading.attr="disabled"
+                        wire:target="confirmarEntrega({{ $o->id }})"
+                        class="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold"
+                        style="background:rgba(78,158,90,0.2);color:#4ade80;border:1px solid rgba(78,158,90,0.4);">
+                    <span wire:loading.remove wire:target="confirmarEntrega({{ $o->id }})">✓ Confirmar</span>
+                    <span wire:loading wire:target="confirmarEntrega({{ $o->id }})">…</span>
+                </button>
+                @endif
+            </div>
+            @endforeach
+            </div>
+        </div>
+        @endif
+    </div>
+    @endforeach
+    </div>
+</div>
+@endif{{-- /hojasPendConf --}}
+
+{{-- ══════════════════════════════════════════════════════
+     SECCIÓN 4 — Historial de hoy
+══════════════════════════════════════════════════════ --}}
+@if($hojasHoy->isNotEmpty())
+<div class="mb-6">
+    <h2 class="font-bold text-sm mb-3 flex items-center gap-2" style="color:var(--vd-muted);">
+        Historial de hoy
+    </h2>
+    <div class="flex flex-col gap-2">
+    @foreach($hojasHoy as $hr)
+    <div class="flex items-center gap-3 px-4 py-3 rounded-xl"
+         style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);">
+        <div class="w-2 h-2 rounded-full flex-shrink-0"
+             style="background:{{ $hr->estado === 'completada' ? '#4ade80' : '#fca5a5' }};opacity:0.6;"></div>
+        <span class="font-mono text-xs font-semibold" style="color:var(--vd-muted);">{{ $hr->numero }}</span>
+        <span class="text-xs" style="color:var(--vd-muted-2);">
+            {{ $hr->transportista_nombre }}
+        </span>
+        <span class="text-xs px-1.5 py-0.5 rounded ml-auto"
+              style="{{ $hr->estado === 'completada'
+                  ? 'background:rgba(78,158,90,0.1);color:#4ade80;'
+                  : 'background:rgba(239,68,68,0.1);color:#fca5a5;' }}">
+            {{ $hr->estado === 'completada' ? 'Completada' : 'Cancelada' }}
+        </span>
+        <span class="text-xs" style="color:var(--vd-muted-2);">
+            {{ $hr->ordenes->count() }} pedidos
+        </span>
+    </div>
+    @endforeach
+    </div>
+</div>
+@endif
+
+@endif{{-- /ciudadActiva --}}
+
+{{-- ══════════════════════════════════════════════════════
+     MODAL — Crear Hoja de Ruta
+══════════════════════════════════════════════════════ --}}
+@if($showCrearHR)
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4"
+     style="background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);">
+    <div class="w-full max-w-md rounded-2xl p-6"
+         style="background:#1e293b;border:1px solid rgba(255,255,255,0.1);box-shadow:0 24px 80px rgba(0,0,0,0.5);">
+
+        <div class="flex items-center justify-between mb-5">
+            <h3 class="font-bold text-base" style="color:var(--vd-text);">
+                Nueva Hoja de Ruta
+            </h3>
+            <button wire:click="cerrarCrearHR" class="text-xl leading-none" style="color:var(--vd-muted-2);">×</button>
+        </div>
+
+        <div class="mb-3 px-3 py-2 rounded-xl text-sm"
+             style="background:rgba(78,158,90,0.1);border:1px solid rgba(78,158,90,0.2);color:#4ade80;">
+            📦 {{ count($seleccionados) }} pedidos seleccionados · {{ $ciudadActiva }}
+        </div>
+
+        <div class="flex flex-col gap-4">
+            <div>
+                <label class="label">Nombre del transportista *</label>
+                <input wire:model="transportistaNombre"
+                       type="text"
+                       placeholder="Ej: Juan Pérez"
+                       class="input w-full"
+                       autofocus>
+                @error('transportistaNombre')
+                <p class="text-xs mt-1" style="color:#fca5a5;">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div>
+                <label class="label">Teléfono del transportista</label>
+                <input wire:model="transportistaTel"
+                       type="tel"
+                       placeholder="Ej: 2994123456"
+                       class="input w-full">
+                @error('transportistaTel')
+                <p class="text-xs mt-1" style="color:#fca5a5;">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div>
+                <label class="label">Notas internas</label>
+                <textarea wire:model="hrNotas"
+                          placeholder="Instrucciones, observaciones…"
+                          rows="2"
+                          class="input w-full resize-none"></textarea>
+                @error('hrNotas')
+                <p class="text-xs mt-1" style="color:#fca5a5;">{{ $message }}</p>
+                @enderror
+            </div>
+        </div>
+
+        <div class="flex gap-3 mt-6">
+            <button wire:click="cerrarCrearHR"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                    style="background:rgba(255,255,255,0.05);color:var(--vd-muted);border:1px solid rgba(255,255,255,0.08);">
+                Cancelar
+            </button>
+            <button wire:click="crearHojaRuta"
+                    wire:loading.attr="disabled"
+                    wire:target="crearHojaRuta"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
+                    style="background:rgba(78,158,90,0.25);color:#4ade80;border:1px solid rgba(78,158,90,0.5);">
+                <span wire:loading.remove wire:target="crearHojaRuta">🚀 Crear y compartir</span>
+                <span wire:loading wire:target="crearHojaRuta">Creando…</span>
+            </button>
+        </div>
+    </div>
+</div>
+@endif
+
+{{-- ══════════════════════════════════════════════════════
+     MODAL — Confirmar cancelar HR
+══════════════════════════════════════════════════════ --}}
+@if($cancelandoHR)
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4"
+     style="background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);">
+    <div class="w-full max-w-sm rounded-2xl p-6 text-center"
+         style="background:#1e293b;border:1px solid rgba(239,68,68,0.3);box-shadow:0 24px 80px rgba(0,0,0,0.5);">
+
+        <div class="text-4xl mb-3">⚠️</div>
+        <h3 class="font-bold text-base mb-2" style="color:#fca5a5;">Cancelar Hoja de Ruta</h3>
+        <p class="text-sm mb-6" style="color:var(--vd-muted-2);">
+            Los pedidos sin confirmar serán liberados y vuelven al estado "Lista para entregar".
+            Esta acción no se puede deshacer.
+        </p>
+
+        <div class="flex gap-3">
+            <button wire:click="$set('cancelandoHR', null)"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+                    style="background:rgba(255,255,255,0.05);color:var(--vd-muted);border:1px solid rgba(255,255,255,0.08);">
+                Volver
+            </button>
+            <button wire:click="cancelarHR"
+                    wire:loading.attr="disabled"
+                    wire:target="cancelarHR"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-bold"
+                    style="background:rgba(239,68,68,0.2);color:#fca5a5;border:1px solid rgba(239,68,68,0.4);">
+                <span wire:loading.remove wire:target="cancelarHR">Sí, cancelar HR</span>
+                <span wire:loading wire:target="cancelarHR">Cancelando…</span>
+            </button>
+        </div>
+    </div>
+</div>
+@endif
+
 </div>

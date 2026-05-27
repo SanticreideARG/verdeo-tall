@@ -12,16 +12,16 @@ class Zona extends Model
 {
     use LogsActivity;
     protected $fillable = [
-        'slug', 'nombre', 'alcance', 'caracteristica',
-        'responsable_id', 'precio_400g', 'precio_250g',
+        'slug', 'nombre', 'ciudad', 'alcance', 'caracteristica',
+        'responsable_id', 'precio_400kcal', 'precio_250kcal',
         'menus_semanales', 'activa', 'whatsapp', 'modelo_ia', 'foto',
     ];
 
     protected $casts = [
         'menus_semanales' => 'array',
         'activa'          => 'boolean',
-        'precio_400g'     => 'integer',
-        'precio_250g'     => 'integer',
+        'precio_400kcal'  => 'integer',
+        'precio_250kcal'  => 'integer',
     ];
 
     public function responsable(): BelongsTo
@@ -42,7 +42,7 @@ class Zona extends Model
 
     public function precioFormateado(string $tamano): string
     {
-        $val = $tamano === '400g' ? $this->precio_400g : $this->precio_250g;
+        $val = $tamano === '400kcal' ? $this->precio_400kcal : $this->precio_250kcal;
         return $val ? '$ ' . number_format($val, 0, ',', '.') : '—';
     }
 

@@ -13,8 +13,8 @@ trait BuildsSystemPrompt
 
         $menu = Producto::where('activo', true)->orderBy('orden')->get()
             ->map(function (Producto $p): string {
-                $p250 = $p->precio_250g ? '$' . number_format((float) $p->precio_250g, 0, ',', '.') : 'a confirmar';
-                $p400 = $p->precio_400g ? '$' . number_format((float) $p->precio_400g, 0, ',', '.') : 'a confirmar';
+                $p250 = $p->precio_250kcal ? '$' . number_format((float) $p->precio_250kcal, 0, ',', '.') : 'a confirmar';
+                $p400 = $p->precio_400kcal ? '$' . number_format((float) $p->precio_400kcal, 0, ',', '.') : 'a confirmar';
                 return "- **{$p->tipoLabel()}**: 250 kcal {$p250} · 400 kcal {$p400}";
             })
             ->join("\n");

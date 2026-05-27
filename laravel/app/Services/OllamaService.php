@@ -89,14 +89,14 @@ class OllamaService
 
     /**
      * Extract structured order data from a free-text message.
-     * Returns ['menu'=>'...', 'tamano'=>'250g|400g', 'forma_pago'=>'...'] or null.
+     * Returns ['menu'=>'...', 'tamano'=>'250kcal|400kcal', 'forma_pago'=>'...'] or null.
      */
     public function extractOrderFromText(string $text): ?array
     {
         $menus     = implode(', ', array_values(\App\Models\Producto::tipos()));
         $prompt    = "Extract order information from this message. Available menus: {$menus}. "
-                   . "Sizes: 250g, 400g. Payment: no_definido, en_destino, transferencia.\n"
-                   . "Respond ONLY with valid JSON: {\"menu\": \"tipo\", \"tamano\": \"250g\", \"forma_pago\": \"en_destino\"}\n"
+                   . "Sizes: 250kcal, 400kcal. Payment: no_definido, en_destino, transferencia.\n"
+                   . "Respond ONLY with valid JSON: {\"menu\": \"tipo\", \"tamano\": \"250kcal\", \"forma_pago\": \"en_destino\"}\n"
                    . "Message: {$text}";
 
         $raw = trim($this->generate($prompt));

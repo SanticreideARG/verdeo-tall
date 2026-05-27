@@ -31,14 +31,21 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
-    'ollama' => [
-        'url'   => env('OLLAMA_URL', 'http://ollama:11434'),
-        'model' => env('OLLAMA_MODEL', 'llama3.2'),
-    ],
+    /* ── IA providers (primary → secondary → tertiary) ─────────────────── */
 
     'anthropic' => [
         'key'   => env('ANTHROPIC_API_KEY'),
-        'model' => env('ANTHROPIC_MODEL', 'claude-haiku-4-5-20251001'),
+        'model' => env('ANTHROPIC_MODEL', 'claude-sonnet-4-6'),
+    ],
+
+    'openai' => [
+        'key'   => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+    ],
+
+    'gemini' => [
+        'key'   => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-2.0-flash'),
     ],
 
 ];

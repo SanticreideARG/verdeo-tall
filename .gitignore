@@ -36,3 +36,6 @@ npm-debug.log*
 
 # Certificados SSL
 certbot/
+# Windows metadata
+*:Zone.Identifier
+*.Zone.Identifier

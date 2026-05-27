@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\BotPermissions;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
@@ -47,6 +48,12 @@ class Setting extends Model
             'wa_valle_nqn'             => '5492995493102',
             'wa_cordoba'               => '5493513007925',
             'wa_mendoza'               => '5492615117163',
-        ];
+        ]
+
+        // Bot capabilities: all off by default (keys prefixed with 'bot_')
+        + array_combine(
+            array_map(fn($k) => 'bot_' . $k, array_keys(BotPermissions::defaults())),
+            array_fill(0, count(BotPermissions::defaults()), '0')
+        );
     }
 }

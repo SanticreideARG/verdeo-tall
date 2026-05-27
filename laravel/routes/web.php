@@ -40,14 +40,6 @@ Route::middleware('auth')->group(function () {
     Volt::route('/conversaciones',             'conversaciones.index') ->name('conversaciones');
     Volt::route('/conversaciones/{conversacion}', 'conversaciones.ver')   ->name('conversaciones.ver');
     Volt::route('/zonas',             'zonas.index')            ->name('zonas');
-    Volt::route('/enlaces',             'enlaces.index')          ->name('enlaces');
-
-// Enlace click tracker
-Route::get('/ir/{enlace}', function (\App\Models\Enlace $enlace) {
-    $enlace->incrementarClicks();
-    return redirect($enlace->url);
-})->middleware(['auth'])->name('enlaces.ir');
-
     Volt::route('/estadisticas',       'estadisticas.index')     ->name('estadisticas');
     Volt::route('/productos',          'productos.index')        ->name('productos');
     Volt::route('/ordenes',            'ordenes.index')          ->name('ordenes');
@@ -60,12 +52,13 @@ Route::get('/ir/{enlace}', function (\App\Models\Enlace $enlace) {
     Volt::route('/clientes',                  'clientes.index')            ->name('clientes');
     Volt::route('/clientes/crm',              'clientes.crm')              ->name('clientes.crm');
     Volt::route('/ajustes',                   'ajustes.index')             ->name('ajustes');
+    Volt::route('/mis-enlaces',        'mis-enlaces.index')       ->name('mis-enlaces');
     Volt::route('/mi-cuenta',         'mi-cuenta.index')        ->name('mi-cuenta');
     Volt::route('/chat',              'chat.index')             ->name('chat');
     Volt::route('/ai',                'ai.chat')                ->name('ai.chat');
     Volt::route('/sistema',           'sistema.index')           ->name('sistema');
     Volt::route('/cocina',            'cocina.index')            ->name('cocina');
-    Volt::route('/redaccion',         'redaccion.index')         ->name('redaccion');
+    Volt::route('/campanas',          'campanas.index')          ->name('campanas');
     Volt::route('/entregas',          'entregas.index')          ->name('entregas');
     Volt::route('/ayuda',             'ayuda.index')             ->name('ayuda');
     Volt::route('/portal',            'portal.index')            ->name('portal');
@@ -78,6 +71,9 @@ Route::get('/ir/{enlace}', function (\App\Models\Enlace $enlace) {
     Volt::route('/marketing/otros',     'marketing.otros')     ->name('marketing.otros');
 
 });
+
+// ─── Microsite público — transportista (sin login) ───────────────────────────
+Volt::route('/r/{token}', 'entregas.microsite')->name('entregas.microsite');
 
 // ─── Portal de clientes (public registration) ────────────────────────────────
 Volt::route('/unirme', 'portal.registro')->name('portal.registro')->middleware('guest');

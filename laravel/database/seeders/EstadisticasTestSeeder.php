@@ -10,7 +10,7 @@ use Carbon\Carbon;
 
 class EstadisticasTestSeeder extends Seeder
 {
-    // Precio base por producto (id => [250g, 400g])
+    // Precio base por producto (id => [250kcal, 400kcal])
     private array $precios = [
         1 => [65_000, 82_000],   // Keto
         2 => [68_000, 85_000],   // Anti-Age
@@ -59,8 +59,8 @@ class EstadisticasTestSeeder extends Seeder
                 $cliente = $clientes->random();
                 $zona    = $this->randomZona();
                 $prod    = $productos->random();
-                $tamano  = rand(0, 2) ? '250g' : '400g';   // 66% 250g, 33% 400g
-                $idx     = $tamano === '250g' ? 0 : 1;
+                $tamano  = rand(0, 2) ? '250kcal' : '400kcal';   // 66% 250kcal, 33% 400kcal
+                $idx     = $tamano === '250kcal' ? 0 : 1;
                 $precio  = ($this->precios[$prod->id][$idx] ?? 65_000) + rand(-2000, 2000);
                 $estado  = $this->randomEstado($daysAgo);
                 $hora    = $fecha->copy()->setTime(rand(9, 17), rand(0, 59), rand(0, 59));
@@ -97,8 +97,8 @@ class EstadisticasTestSeeder extends Seeder
                 // ~20% de órdenes tienen un segundo ítem (producto distinto)
                 if (rand(0, 4) === 0) {
                     $prod2   = $productos->where('id', '!=', $prod->id)->random();
-                    $tam2    = rand(0, 1) ? '250g' : '400g';
-                    $precio2 = ($this->precios[$prod2->id][$tam2 === '250g' ? 0 : 1] ?? 60_000) + rand(-1000, 1000);
+                    $tam2    = rand(0, 1) ? '250kcal' : '400kcal';
+                    $precio2 = ($this->precios[$prod2->id][$tam2 === '250kcal' ? 0 : 1] ?? 60_000) + rand(-1000, 1000);
 
                     DB::table('orden_items')->insert([
                         'orden_id'        => $ordenId,

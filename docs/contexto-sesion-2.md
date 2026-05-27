@@ -265,6 +265,144 @@ Rutas relativas a `/home/screide/proyectos/verdeo-tall/laravel/` salvo indicaci�
 | Modelo de config | `app/Models/Setting.php` (claves `mail_*` nuevas) |
 | Servicio IA de referencia | `app/Services/OllamaService.php` (plantilla para `MessageDispatcher`) |
 
+---
+
+## SESIÓN 3 — 2026-05-25 · Cambios aplicados
+
+### S3.1 — Migración de motor IA: Ollama → Claude / GPT / Gemini
+
+**Decisión de arquitectura:** Ollama dejó de ser el motor primario. Fue reemplazado
+por un stack de APIs cloud con fallback en cascada.
+
+**Nueva jerarquía:**
+1. **Claude** (Anthropic API · `claude-sonnet-4-6`) — primario
+2. **GPT** (OpenAI API · `gpt-4o-mini`) — secundario
+3. **Gemini** (Google AI Studio · `gemini-2.0-flash`) — terciario
+
+**Nuevo archivo clave:** `app/Services/AiRouter.php`
+- Orquesta los 3 proveedores.
+- `chat()` hace fallback automático si un proveedor falla.
+- `chatWith('claude', $msgs)` usa un proveedor específico, con fallback.
+- `suggestReply()` y `extractOrderFromText()` — misma API pública que antes.
+- **Todos los call sites deben inyectar `AiRouter`, nunca los servicios individuales.**
+
+**Contrato:** `app/Contracts/AiServiceInterface.php`
+- Métodos obligatorios: `chat()`, `isAvailable()`, `getModel()`, `getProviderName()`.
+
+**Servicios nuevos:**
+- `app/Services/GptService.php` — OpenAI Chat Completions API.
+- `app/Services/GeminiService.php` — Google Generative Language API.
+  Gemini usa formato diferente: `contents[].parts[]` + `systemInstruction`.
+  La conversión de mensajes OpenAI-style a Gemini-style ocurre dentro del servicio.
+
+**Servicios actualizados:**
+- `app/Services/ClaudeService.php` — implementa `AiServiceInterface`, modelo
+  default actualizado a `claude-sonnet-4-6`.
+- `app/Services/OllamaService.php` — queda en el repo como referencia histórica
+  pero **no se usa en ningún call site**. No eliminar — sirve para rollback.
+
+**Variables de entorno (.env):**
+```
+# Antes:
+OLLAMA_URL=http://host.docker.internal:11434
+OLLAMA_MODEL=llama3.2
+ANTHROPIC_API_KEY=
+ANTHROPIC_MODEL=claude-haiku-4-5-20251001
+
+# Ahora:
+ANTHROPIC_API_KEY=   # → primario
+ANTHROPIC_MODEL=claude-sonnet-4-6
+OPENAI_API_KEY=      # → secundario
+OPENAI_MODEL=gpt-4o-mini
+GEMINI_API_KEY=      # → terciario
+GEMINI_MODEL=gemini-2.0-flash
+```
+
+**config/services.php** — secciones `openai` y `gemini` agregadas; `ollama` eliminada.
+
+### S3.2 — Contenedor Ollama desactivado
+
+- `docker-compose.yml`: bloque `ollama:` comentado.
+- Contenedor `verdeo_ollama` detenido y eliminado.
+- Variable `OLLAMA_URL` eliminada del entorno de `laravel-app`.
+- **4.1 GB en `/mnt/d/verdeo-docker/ollama/`** siguen en disco. Se pueden eliminar
+  manualmente cuando se confirme que no hay rollback: `rm -rf /mnt/d/verdeo-docker/ollama`.
+- Ganancia inmediata: 1 contenedor menos, puerto 11434 libre, sin timeout de 300s.
+
+### S3.3 — Módulo "enlaces" global eliminado
+
+El tracker de short-links global (`/enlaces`, modelo `Enlace`, tabla `enlaces`) se
+considera redundante con la nueva feature de **Mis enlaces** (`/mis-enlaces`).
+
+- Ruta `/enlaces` y `/ir/{enlace}` eliminadas de `routes/web.php`.
+- Entrada del sidebar "Enlaces" eliminada de `layouts/app.blade.php`.
+- Los archivos de vista (`resources/views/livewire/enlaces/`) y el modelo `Enlace`
+  **quedan en el repo** pero ya no tienen ruta ni navegación. Eliminarlos
+  definitivamente cuando se confirme que no hay datos en producción que dependan de ellos.
+
+### S3.4 — Feature "Mis enlaces" completada
+
+- Tabla: `user_links` (migración `2026_05_25_023546_create_user_links_table.php`).
+- Modelo: `app/Models/UserLink.php` con `dominio()` y `faviconUrl()` (Google S2).
+- Relación en `User`: `links()` hasMany UserLink.
+- Vista: `resources/views/livewire/mis-enlaces/index.blade.php` — Volt SFC completo.
+  - CRUD: agregar, editar, eliminar con `wire:confirm`.
+  - Reordenar: ↑ ↓ por fila.
+  - Favicon automático (Google S2 API).
+  - Acceso restringido: admin y responsable_zona únicamente.
+- Ruta: `/mis-enlaces` (name: `mis-enlaces`).
+- Sidebar: entrada visible solo para admin y responsable_zona.
+
+### S3.5 — Ajustes IA actualizado
+
+- Opciones de proveedor: `claude | gpt | gemini` (antes: `claude | gpt | ollama`).
+- Validación actualizada: `in:claude,gpt,gemini`.
+- API key requerida para los 3 proveedores (antes Ollama era excepción sin key).
+- URL de referencia en el label de API key: `aistudio.google.com` para Gemini.
+- Modelos Gemini en el dropdown: `gemini-2.0-flash` ✓, Flash Lite, 1.5 Pro, 1.5 Flash.
+
+### S3.6 — Mejoras de legibilidad en temas claros (CSS)
+
+**`resources/css/app.css`** — cambios en `cielo` y `light/natural`:
+- `--vd-muted`: opacidad 0.55 → **0.68** (contraste ≈ 3.5 → 4.8:1 — WCAG AA ✓).
+- `--vd-muted-2`: opacidad 0.35 → **0.50**.
+- `--vd-bdr-soft`: opacidad 0.09 → **0.14** (bordes de inputs visibles sobre cards).
+- `--vd-input-bg`: opacidad 0.04 → **0.06**.
+
+**Overrides faltantes para `[data-theme="cielo"]` (todos nuevos):**
+- `.nav-link-active`: `color: #1d4ed8` (antes: `#fff` sobre sidebar blanco → ilegible).
+- `table thead th`: fondo azul claro (antes: heredaba fondo oscuro del tema dark).
+- `select.input option`: `#e2eaf3 / #0f172a` (antes: fondo oscuro).
+- `.badge-green`, `.badge-blue`, `.badge-red`: colores oscuros legibles.
+- `.trend-up`, `.trend-down`: `#1d4ed8` / `#dc2626`.
+- `.card::before`: línea decorativa azul.
+
+### S3.7 — Gotchas nuevos para instancia futura
+
+- **`AiRouter` es el único punto de entrada IA.** No inyectar `ClaudeService`,
+  `GptService` o `GeminiService` directamente en componentes Livewire o Jobs.
+- **Gemini convierte mensajes.** `GeminiService::chat()` convierte el array
+  OpenAI-style a `contents[]` de Gemini internamente. No pasar formato Gemini nativo.
+- **`OllamaService` obsoleto pero no eliminado.** Sigue en disco. Si algún código
+  legacy lo inyecta, va a romper porque el contenedor no existe más.
+- **Módulo `Enlace` (global) sin ruta.** El modelo y la vista existen pero no están
+  accesibles. Si la DB de producción tiene datos en `enlaces`, considerar migrarlos
+  a `user_links` antes de eliminar el modelo.
+
+### S3.8 — Estado actual del stack
+
+| Componente | Estado |
+|---|---|
+| Laravel + Volt + Livewire | ✅ corriendo |
+| MySQL, Redis, Nginx | ✅ corriendo |
+| Horizon (queue) | ✅ corriendo |
+| n8n | ✅ corriendo (299 MB RAM) |
+| Evolution API | 💀 crash loop (Prisma) — sigue pendiente |
+| Ollama | 🚫 eliminado del stack |
+| Claude API | ⚠️ API key no configurada aún |
+| OpenAI API | ⚠️ API key no configurada aún |
+| Gemini API | ⚠️ API key no configurada aún |
+
 > Las rutas exactas de las vistas Volt dependen de cómo esté organizado
 > `resources/views/` (puede ser `livewire/` o `pages/`). Localizar por la ruta:
 > buscar el componente que responde a `/ajustes` y a la ruta de ayuda.
@@ -284,3 +422,49 @@ en conversaciones (4.2 y 4.3). Es la pieza de mayor valor que NO depende de HTTP
 ni de Meta — se puede construir y probar contra Evolution API en cuanto el crash
 loop esté resuelto, y deja el inbox realmente útil. El webhook de Meta (4.1) queda
 bloqueado hasta tener HTTPS.
+
+---
+
+## SESIÓN 4 — Rediseño Cocina + Sistema de Bot
+
+### Bot User System (completado)
+-  — catálogo de 15 capacidades en 5 grupos, toggles persistidos en Setting
+-  — rol , ,  actualizado
+-  — parámetro  en  para acciones desde jobs/console
+-  —  y  (cacheado 60s)
+-  — defaults de bot (bot_* → '0')
+- Migration  — enum roles agrega  y 
+-  — bot@verdeo.com.ar, ID: 27
+- Ajustes → tab Agente
+
+
+---
+
+## SESION 4 — Redreno Cocina + Sistema de Bot
+
+### Bot User System (completado)
+- BotPermissions catalog, toggles persistidos en Setting
+- User model: rol bot, isBot(), rolesLabels() actualizado
+- ActividadLog: actorId param en registrar()
+- AiRouter: botCanDo() y botUserId()
+- BotUserSeeder: bot@verdeo.com.ar, ID: 27
+- Ajustes -> tab Agente Bot con toggles inmediatos
+
+### Rediseno Cocina (completado)
+- zonas.ciudad VARCHAR(80) — agrupa zonas para pestanas de cocina
+- users.ciudad VARCHAR(80) — restringe vista cocina/transporte
+- tabla ordenes_cocina — batch COC-YYYYMMDD-NNN
+- ordenes.orden_cocina_id FK
+- ordenes.asignado_cocina_id FK
+
+### Flujo
+1. Pendientes: seleccion con checkboxes, Enviar a Cocina crea batch
+2. En Cocina: batches activos, asignacion por batch o individual
+3. Marcar Listo: orden -> lista_para_entrega, batch se cierra automaticamente
+
+### Ciudades asignadas: bsas=Buenos Aires, valle_nqn=Neuquen/Roca, cordoba=Cordoba, mendoza=Mendoza
+
+### Pendiente
+- Entregas: hoja de ruta, microsite 24h con token, vista transportista
+- En camino/Estoy afuera via WA
+- Definicion formal de alcances de todos los roles

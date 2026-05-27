@@ -21,12 +21,15 @@ class Orden extends Model
     protected $fillable = [
         'numero', 'user_id', 'estado', 'zona', 'notas', 'total',
         'ingresa_por', 'direccion', 'latitud', 'longitud',
+        'orden_cocina_id', 'asignado_cocina_id',
+        'hoja_ruta_id', 'transportista_confirma_at',
     ];
 
     protected $casts = [
-        'total'    => 'decimal:2',
-        'latitud'  => 'float',
-        'longitud' => 'float',
+        'total'                     => 'decimal:2',
+        'latitud'                   => 'float',
+        'longitud'                  => 'float',
+        'transportista_confirma_at' => 'datetime',
     ];
 
     public static array $estados = [
@@ -75,5 +78,20 @@ class Orden extends Model
     public function items()
     {
         return $this->hasMany(OrdenItem::class);
+    }
+
+    public function ordenCocina()
+    {
+        return $this->belongsTo(OrdenCocina::class, 'orden_cocina_id');
+    }
+
+    public function asignadoCocina()
+    {
+        return $this->belongsTo(User::class, 'asignado_cocina_id');
+    }
+
+    public function hojaRuta()
+    {
+        return $this->belongsTo(HojaRuta::class, 'hoja_ruta_id');
     }
 }
