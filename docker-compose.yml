@@ -13,7 +13,10 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - /mnt/d/verdeo-docker/certbot:/etc/letsencrypt
     depends_on:
-      - laravel-app
+      laravel-app:
+        condition: service_started
+      typescript-api:
+        condition: service_healthy
     networks:
       - verdeo_net
 
@@ -37,9 +40,49 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_SESSION_DB=${REDIS_SESSION_DB:-2}
+      - SESSION_DRIVER=${SESSION_DRIVER:-redis}
+      - SESSION_CONNECTION=${SESSION_CONNECTION:-session}
+      - SESSION_COOKIE=${SESSION_COOKIE:-verdeo_session}
+      - SESSION_SECURE_COOKIE=${SESSION_SECURE_COOKIE:-false}
+      - SESSION_SAME_SITE=${SESSION_SAME_SITE:-lax}
     depends_on:
-      - mysql
-      - redis
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - verdeo_net
+
+  # ─── TYPESCRIPT API (MIGRACIÓN INCREMENTAL) ─────────────────────────────────
+  typescript-api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: verdeo_typescript_api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=3000
+      - HOST=0.0.0.0
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - INTERNAL_API_TOKEN=${INTERNAL_API_TOKEN:-local-development-token-change-me}
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=${DB_DATABASE}
+      - MYSQL_USER=${DB_USERNAME}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/v1/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
     networks:
       - verdeo_net
 
@@ -57,7 +100,13 @@ services:
     volumes:
       - verdeo_mysql_data:/var/lib/mysql
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
     networks:
       - verdeo_net
 
@@ -69,17 +118,22 @@ services:
     volumes:
       - verdeo_redis_data:/data
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     networks:
       - verdeo_net
 
   # ─── N8N ────────────────────────────────────────────────────────────────────
   n8n:
-    image: n8nio/n8n
+    image: n8nio/n8n:2.18.5@sha256:2d70fafea7c0c397f40df30daa31243c0bff590e9e87e0430398e7cb4d3d8d0b
     container_name: verdeo_n8n
     restart: unless-stopped
     ports:
-      - "5678:5678"
+      - "127.0.0.1:5678:5678"
     environment:
       - N8N_HOST=${N8N_HOST}
       - N8N_PORT=5678
@@ -88,27 +142,26 @@ services:
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=${N8N_USER}
       - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
-      - DB_TYPE=mysqldb
-      - DB_MYSQLDB_HOST=mysql
-      - DB_MYSQLDB_PORT=3306
-      - DB_MYSQLDB_DATABASE=${N8N_DB}
-      - DB_MYSQLDB_USER=${DB_USERNAME}
-      - DB_MYSQLDB_PASSWORD=${DB_PASSWORD}
+      - DB_TYPE=sqlite
     volumes:
       - /mnt/d/verdeo-docker/n8n:/home/node/.n8n
       - ./n8n/workflows:/workflows
-    depends_on:
-      - mysql
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5678/healthz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     networks:
       - verdeo_net
 
   # ─── EVOLUTION API ──────────────────────────────────────────────────────────
   evolution-api:
-    image: atendai/evolution-api:latest
+    image: atendai/evolution-api@sha256:1a69aaeea408ccf753e8c9ad5fa91146a478ce4d3609577fd73ad2c52e69f8ae
     container_name: verdeo_evolution
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       - SERVER_URL=http://evolution-api:8080
       - AUTHENTICATION_TYPE=apikey
@@ -116,14 +169,19 @@ services:
       - DATABASE_ENABLED=true
       - DATABASE_PROVIDER=mysql
       - DATABASE_CONNECTION_URI=mysql://${DB_USERNAME}:${DB_PASSWORD}@mysql:3306/verdeo_evolution
-      - REDIS_ENABLED=true
-      - REDIS_URI=redis://redis:6379
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://redis:6379/6
+      - CACHE_REDIS_PREFIX_KEY=verdeo
+      - CACHE_REDIS_SAVE_INSTANCES=true
+      - CACHE_LOCAL_ENABLED=false
     volumes:
       - /mnt/d/verdeo-docker/evolution:/evolution/instances
       - ./evolution-api/config:/evolution/config
     depends_on:
-      - mysql
-      - redis
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - verdeo_net
 
@@ -157,8 +215,10 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_HOST=redis
     depends_on:
-      - mysql
-      - redis
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - verdeo_net
 
@@ -184,8 +244,10 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_HOST=redis
     depends_on:
-      - mysql
-      - redis
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - verdeo_net
 
