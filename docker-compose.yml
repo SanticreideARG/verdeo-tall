@@ -78,7 +78,7 @@ services:
       - POSTGRES_PORT=5432
       - POSTGRES_DATABASE=${POSTGRES_DATABASE:-verdeo_messaging}
       - POSTGRES_USER=${POSTGRES_USER:-verdeo_user}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-local_postgres_password_change_me}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       - LEGACY_TIMEZONE_OFFSET=${LEGACY_TIMEZONE_OFFSET:--03:00}
     depends_on:
       mysql:
@@ -126,7 +126,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DATABASE:-verdeo_messaging}
       POSTGRES_USER: ${POSTGRES_USER:-verdeo_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_postgres_password_change_me}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - verdeo_postgres_data:/var/lib/postgresql/data
     ports:
