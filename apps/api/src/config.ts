@@ -6,6 +6,7 @@ const environmentSchema = z.object({
   HOST: z.string().min(1).default('0.0.0.0'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   INTERNAL_API_TOKEN: z.string().min(16),
+  EVOLUTION_WEBHOOK_SECRET: z.string().min(16),
   MYSQL_HOST: z.string().min(1),
   MYSQL_PORT: z.coerce.number().int().min(1).max(65_535).default(3306),
   MYSQL_DATABASE: z.string().min(1),
@@ -25,6 +26,7 @@ export type AppConfig = {
   host: string;
   logLevel: z.infer<typeof environmentSchema>['LOG_LEVEL'];
   internalApiToken: string;
+  evolutionWebhookSecret: string;
   mysql: {
     host: string;
     port: number;
@@ -51,6 +53,7 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): AppCon
     host: parsed.HOST,
     logLevel: parsed.LOG_LEVEL,
     internalApiToken: parsed.INTERNAL_API_TOKEN,
+    evolutionWebhookSecret: parsed.EVOLUTION_WEBHOOK_SECRET,
     mysql: {
       host: parsed.MYSQL_HOST,
       port: parsed.MYSQL_PORT,

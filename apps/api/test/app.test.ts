@@ -13,6 +13,7 @@ const config: AppConfig = {
   port: 3000,
   logLevel: 'silent',
   internalApiToken: 'test-token-at-least-sixteen-characters',
+  evolutionWebhookSecret: 'evolution-test-secret-at-least-sixteen',
   mysql: {
     host: 'mysql',
     port: 3306,

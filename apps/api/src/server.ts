@@ -3,16 +3,19 @@ import { loadConfig } from './config.js';
 import { createMySqlPool } from './infrastructure/mysql.js';
 import { createPostgresPool } from './infrastructure/postgres.js';
 import { MySqlConversationRepository } from './modules/conversations/mysql-conversation-repository.js';
+import { PostgresEvolutionWebhookService } from './modules/evolution/evolution-webhook-service.js';
 
 const config = loadConfig();
 const pool = createMySqlPool(config.mysql);
 const postgresPool = createPostgresPool(config.postgres);
 const conversationRepository = new MySqlConversationRepository(pool);
+const evolutionWebhookHandler = new PostgresEvolutionWebhookService(postgresPool);
 const app = buildApp({
   config,
   conversationRepository,
   mysqlPool: pool,
   postgresPool,
+  evolutionWebhookHandler,
 });
 
 const shutdown = async (signal: string): Promise<void> => {

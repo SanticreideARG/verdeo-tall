@@ -3,6 +3,8 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import type { Pool } from 'mysql2/promise';
 import type { Pool as PostgresPool } from 'pg';
 import type { AppConfig } from './config.js';
+import { registerEvolutionRoutes } from './modules/evolution/routes.js';
+import type { EvolutionWebhookHandler } from './modules/evolution/evolution-webhook-service.js';
 import type { ConversationRepository } from './modules/conversations/conversation.js';
 import { registerConversationRoutes } from './modules/conversations/routes.js';
 
@@ -11,6 +13,7 @@ type BuildAppOptions = {
   conversationRepository: ConversationRepository;
   mysqlPool?: Pool;
   postgresPool?: PostgresPool;
+  evolutionWebhookHandler?: EvolutionWebhookHandler;
 };
 
 function tokensMatch(received: string | undefined, expected: string): boolean {
@@ -33,7 +36,11 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   });
 
   app.addHook('onRequest', async (request, reply) => {
-    if (request.url === '/v1/health' || request.url === '/v1/ready') {
+    if (
+      request.url === '/v1/health'
+      || request.url === '/v1/ready'
+      || request.routeOptions.url === '/v1/webhooks/evolution'
+    ) {
       return;
     }
 
@@ -60,6 +67,9 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   });
 
   registerConversationRoutes(app, options.conversationRepository);
+  if (options.evolutionWebhookHandler) {
+    registerEvolutionRoutes(app, options.config, options.evolutionWebhookHandler);
+  }
 
   if (options.mysqlPool || options.postgresPool) {
     app.addHook('onClose', async () => {
