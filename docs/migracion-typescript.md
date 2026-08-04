@@ -31,11 +31,25 @@ El importador MySQL → PostgreSQL funciona en dos modos:
 
 La validación local importó 142 conversaciones, 142 contactos y 528 mensajes. Dos ejecuciones consecutivas conservaron exactamente esos conteos. MySQL continúa siendo la única fuente de verdad; PostgreSQL todavía no recibe tráfico de escritura productivo.
 
+## Tercer corte implementado
+
+Evolution API 2.2.3 envía por la red privada de Docker los eventos `MESSAGES_UPSERT`, `MESSAGES_UPDATE` y `MESSAGES_DELETE` a `POST /v1/webhooks/evolution`. El receptor:
+
+- valida la API key sin comparaciones temporales variables y no la persiste;
+- registra el evento crudo sanitizado con una clave idempotente;
+- normaliza JID, contacto, cuerpo, tipo, dirección y timestamp;
+- crea o actualiza conversación y mensaje dentro de una transacción;
+- conserva estados terminales y evita regresiones ante eventos desordenados;
+- agrega un evento transaccional pendiente a `messaging.outbox_events`.
+
+Los replays integrados comprobaron `401` para secretos inválidos, `202` para eventos nuevos y `200` para duplicados. También se verificó el recorrido real Evolution → red Docker → API → PostgreSQL. Los datos sintéticos fueron eliminados al terminar la prueba. No hay instancias de WhatsApp activas en el entorno local, por lo que la ingesta permanece en modo sombra hasta conectar una.
+
 ## Reglas de transición
 
 - Una sola fuente de verdad por entidad y fase.
 - Nada de doble escritura sin outbox y reconciliación.
 - Webhooks idempotentes mediante identificador externo único.
+- Los secretos recibidos en webhooks se validan y eliminan antes de persistir payloads.
 - Backfill repetible y verificable por conteos y checksums.
 - Los historiales JSON heredados solo pueden crecer por append hasta el cutover; reordenarlos invalidaría sus referencias posicionales.
 - Cambios de tráfico reversibles desde Nginx.

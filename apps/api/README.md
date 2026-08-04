@@ -7,6 +7,7 @@ Servicio de migración incremental de Laravel a TypeScript.
 - `GET /v1/health`: liveness público.
 - `GET /v1/ready`: conexión con MySQL y PostgreSQL.
 - `GET /v1/conversations`: lectura paginada por cursor. Requiere `Authorization: Bearer <INTERNAL_API_TOKEN>`.
+- `POST /v1/webhooks/evolution`: ingesta interna de eventos de Evolution API.
 
 La API lee la tabla `conversaciones` de MySQL sin seleccionar la columna JSON `mensajes`. El repositorio es reemplazable para mover el almacenamiento a PostgreSQL sin cambiar el contrato HTTP.
 
@@ -15,6 +16,14 @@ La API lee la tabla `conversaciones` de MySQL sin seleccionar la columna JSON `m
 PostgreSQL contiene el modelo normalizado de canales, conversaciones, participantes, mensajes, adjuntos y eventos de ingesta. La API aplica automáticamente los archivos de `migrations/` al arrancar y verifica sus checksums.
 
 MySQL continúa siendo la fuente de verdad. El backfill no activa doble escritura.
+
+## Evolution API
+
+Evolution 2.2.3 envía globalmente `MESSAGES_UPSERT`, `MESSAGES_UPDATE` y `MESSAGES_DELETE` a la API por la red privada de Docker. El endpoint valida `apikey` en tiempo constante y elimina ese campo antes de guardar el payload.
+
+Cada evento se inserta primero en `messaging.ingestion_events`. La clave idempotente evita replays; en la misma transacción se actualizan participantes, conversación y mensaje, y se agrega un evento pendiente a `messaging.outbox_events`. Las actualizaciones fuera de orden no pueden hacer retroceder un mensaje desde `read` a `delivered`, y `deleted` es terminal.
+
+El endpoint no está publicado por Nginx. Para instancias configuradas individualmente también acepta el secreto en `x-verdeo-webhook-secret`.
 
 ```bash
 # Inspección sin escrituras
