@@ -1,5 +1,7 @@
 # Migración incremental a TypeScript
 
+Guía complementaria: [instructivo operativo completo](instructivo-operativo.md).
+
 ## Decisión
 
 Verdeo migrará por módulos usando el patrón strangler. Laravel permanece operativo durante la transición; Nginx dirige únicamente las rutas ya migradas al servicio TypeScript.
