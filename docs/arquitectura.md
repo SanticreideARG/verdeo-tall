@@ -1,8 +1,11 @@
 # Arquitectura — Verdeo TALL
 
-**Stack:** Tailwind v3 · Alpine.js · Laravel 10 · Livewire v4.3.0 Volt  
+**Stack actual:** Tailwind v3 · Alpine.js · Laravel 10 · Livewire v4.3.0 Volt
+**Migración:** TypeScript · Node.js 22 · Fastify · PostgreSQL (objetivo)
 **Patrón:** Single-File Components (Volt SFCs) — PHP class + Blade template en un solo archivo  
-**Fecha de última actualización:** 2026-05-12
+**Fecha de última actualización:** 2026-08-04
+
+La migración se realiza por módulos. Laravel continúa operativo y `apps/api` incorpora los primeros contratos TypeScript. Ver [migracion-typescript.md](migracion-typescript.md).
 
 ---
 
@@ -14,11 +17,11 @@ Host Windows
     └── Docker Desktop
         ├── verdeo_nginx      :8888 → nginx → verdeo_laravel:9000
         ├── verdeo_laravel    php-fpm (Laravel 10)
-        ├── verdeo_mysql      :3306  (D:\verdeo-docker\mysql)
-        ├── verdeo_redis      :6379  (D:\verdeo-docker\redis)
+        ├── verdeo_typescript_api :3000 (Fastify, migración incremental)
+        ├── verdeo_mysql      :3306  (volumen Docker verdeo_mysql_data)
+        ├── verdeo_redis      :6379  (volumen Docker verdeo_redis_data)
         ├── verdeo_n8n        :5678  (D:\verdeo-docker\n8n)
         ├── verdeo_evolution  :8080  (D:\verdeo-docker\evolution)
-        ├── verdeo_ollama     :11434 (D:\verdeo-docker\ollama)
         ├── verdeo_queue      (Laravel queue worker)
         └── verdeo_scheduler  (Laravel scheduler)
 ```
