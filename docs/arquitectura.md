@@ -1,7 +1,7 @@
 # Arquitectura — Verdeo TALL
 
 **Stack actual:** Tailwind v3 · Alpine.js · Laravel 10 · Livewire v4.3.0 Volt
-**Migración:** TypeScript · Node.js 22 · Fastify · PostgreSQL (objetivo)
+**Migración:** TypeScript · Node.js 22 · Fastify · PostgreSQL 17
 **Patrón:** Single-File Components (Volt SFCs) — PHP class + Blade template en un solo archivo  
 **Fecha de última actualización:** 2026-08-04
 
@@ -19,6 +19,7 @@ Host Windows
         ├── verdeo_laravel    php-fpm (Laravel 10)
         ├── verdeo_typescript_api :3000 (Fastify, migración incremental)
         ├── verdeo_mysql      :3306  (volumen Docker verdeo_mysql_data)
+        ├── verdeo_postgres   :5432  (mensajería normalizada, destino de migración)
         ├── verdeo_redis      :6379  (volumen Docker verdeo_redis_data)
         ├── verdeo_n8n        :5678  (D:\verdeo-docker\n8n)
         ├── verdeo_evolution  :8080  (D:\verdeo-docker\evolution)
@@ -26,7 +27,9 @@ Host Windows
         └── verdeo_scheduler  (Laravel scheduler)
 ```
 
-Todos los contenedores comparten la red Docker `verdeo_network`. Se comunican por nombre de servicio (ej: `http://ollama:11434`).
+Todos los contenedores comparten la red Compose `verdeo_net`. Se comunican por nombre de servicio.
+
+La API TypeScript comprueba MySQL y PostgreSQL en readiness. Al iniciar aplica las migraciones SQL pendientes. MySQL sigue atendiendo las lecturas del contrato `/v1/conversations`; PostgreSQL conserva el backfill reconciliado hasta que se implemente la ingesta idempotente y se autorice el cambio de fuente.
 
 ## Estructura de archivos Laravel
 

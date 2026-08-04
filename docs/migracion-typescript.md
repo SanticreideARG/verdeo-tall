@@ -20,12 +20,24 @@ Los adjuntos no se almacenarán en la base: irán a almacenamiento compatible co
 
 `apps/api` publica salud, readiness y `GET /v1/conversations` con autenticación interna, filtros y paginación por cursor. El endpoint evita cargar el JSON histórico de mensajes y establece un contrato independiente del motor de persistencia.
 
+## Segundo corte implementado
+
+PostgreSQL se ejecuta en un volumen independiente y contiene el esquema normalizado `messaging`: canales, participantes, conversaciones, mensajes, adjuntos, eventos de ingesta y ejecuciones de migración. Las migraciones SQL tienen checksum y un lock de PostgreSQL evita que dos réplicas las apliquen en paralelo.
+
+El importador MySQL → PostgreSQL funciona en dos modos:
+
+- `dry-run`: recorre y valida el origen sin escribir;
+- `--apply`: hace upsert por identificadores de linaje, registra la ejecución y reconcilia conteos.
+
+La validación local importó 142 conversaciones, 142 contactos y 528 mensajes. Dos ejecuciones consecutivas conservaron exactamente esos conteos. MySQL continúa siendo la única fuente de verdad; PostgreSQL todavía no recibe tráfico de escritura productivo.
+
 ## Reglas de transición
 
 - Una sola fuente de verdad por entidad y fase.
 - Nada de doble escritura sin outbox y reconciliación.
 - Webhooks idempotentes mediante identificador externo único.
 - Backfill repetible y verificable por conteos y checksums.
+- Los historiales JSON heredados solo pueden crecer por append hasta el cutover; reordenarlos invalidaría sus referencias posicionales.
 - Cambios de tráfico reversibles desde Nginx.
 
 ## Deuda de seguridad durante la transición
