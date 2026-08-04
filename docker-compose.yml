@@ -74,8 +74,16 @@ services:
       - MYSQL_DATABASE=${DB_DATABASE}
       - MYSQL_USER=${DB_USERNAME}
       - MYSQL_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DATABASE=${POSTGRES_DATABASE:-verdeo_messaging}
+      - POSTGRES_USER=${POSTGRES_USER:-verdeo_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-local_postgres_password_change_me}
+      - LEGACY_TIMEZONE_OFFSET=${LEGACY_TIMEZONE_OFFSET:--03:00}
     depends_on:
       mysql:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/v1/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
@@ -107,6 +115,28 @@ services:
       timeout: 5s
       retries: 20
       start_period: 20s
+    networks:
+      - verdeo_net
+
+  # ─── POSTGRESQL (DESTINO DE LA MIGRACIÓN) ───────────────────────────────────
+  postgres:
+    image: postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
+    container_name: verdeo_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DATABASE:-verdeo_messaging}
+      POSTGRES_USER: ${POSTGRES_USER:-verdeo_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_postgres_password_change_me}
+    volumes:
+      - verdeo_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
     networks:
       - verdeo_net
 
@@ -259,4 +289,5 @@ networks:
 # ─── VOLUMES ────────────────────────────────────────────────────────────────
 volumes:
   verdeo_mysql_data:
+  verdeo_postgres_data:
   verdeo_redis_data:

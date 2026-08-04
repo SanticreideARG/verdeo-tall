@@ -16,5 +16,6 @@ USER node
 COPY --chown=node:node --from=build /app/package.json ./package.json
 COPY --chown=node:node --from=build /app/node_modules ./node_modules
 COPY --chown=node:node --from=build /app/dist ./dist
+COPY --chown=node:node migrations ./migrations
 EXPOSE 3000
-CMD ["node", "dist/server.js"]
+CMD ["npm", "start"]

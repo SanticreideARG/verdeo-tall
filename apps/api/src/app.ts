@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { Pool } from 'mysql2/promise';
+import type { Pool as PostgresPool } from 'pg';
 import type { AppConfig } from './config.js';
 import type { ConversationRepository } from './modules/conversations/conversation.js';
 import { registerConversationRoutes } from './modules/conversations/routes.js';
@@ -8,7 +9,8 @@ import { registerConversationRoutes } from './modules/conversations/routes.js';
 type BuildAppOptions = {
   config: AppConfig;
   conversationRepository: ConversationRepository;
-  pool?: Pool;
+  mysqlPool?: Pool;
+  postgresPool?: PostgresPool;
 };
 
 function tokensMatch(received: string | undefined, expected: string): boolean {
@@ -49,6 +51,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   app.get('/v1/ready', async (_request, reply) => {
     try {
       await options.conversationRepository.ping();
+      await options.postgresPool?.query('SELECT 1');
       return reply.send({ status: 'ready' });
     } catch (error) {
       app.log.error(error);
@@ -58,9 +61,12 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
 
   registerConversationRoutes(app, options.conversationRepository);
 
-  if (options.pool) {
+  if (options.mysqlPool || options.postgresPool) {
     app.addHook('onClose', async () => {
-      await options.pool?.end();
+      await Promise.all([
+        options.mysqlPool?.end(),
+        options.postgresPool?.end(),
+      ]);
     });
   }
 

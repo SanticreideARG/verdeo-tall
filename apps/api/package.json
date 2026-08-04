@@ -3,21 +3,28 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "db:backfill": "tsx src/scripts/backfill-messaging.ts --apply",
+    "db:backfill:dry": "tsx src/scripts/backfill-messaging.ts",
+    "db:migrate": "tsx src/scripts/db-migrate.ts",
     "dev": "tsx watch src/server.ts",
-    "start": "node dist/server.js",
+    "start": "node dist/scripts/db-migrate.js && node dist/server.js",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "fastify": "5.11.2",
     "mysql2": "3.23.2",
+    "pg": "8.22.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "22.20.0",
+    "@types/pg": "8.20.4",
     "tsx": "4.23.5",
     "typescript": "6.0.3",
     "vitest": "4.1.10"

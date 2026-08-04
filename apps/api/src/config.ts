@@ -11,6 +11,12 @@ const environmentSchema = z.object({
   MYSQL_DATABASE: z.string().min(1),
   MYSQL_USER: z.string().min(1),
   MYSQL_PASSWORD: z.string(),
+  POSTGRES_HOST: z.string().min(1),
+  POSTGRES_PORT: z.coerce.number().int().min(1).max(65_535).default(5432),
+  POSTGRES_DATABASE: z.string().min(1),
+  POSTGRES_USER: z.string().min(1),
+  POSTGRES_PASSWORD: z.string().min(1),
+  LEGACY_TIMEZONE_OFFSET: z.string().regex(/^[+-]\d{2}:\d{2}$/).default('-03:00'),
 });
 
 export type AppConfig = {
@@ -26,6 +32,14 @@ export type AppConfig = {
     user: string;
     password: string;
   };
+  postgres: {
+    host: string;
+    port: number;
+    database: string;
+    user: string;
+    password: string;
+  };
+  legacyTimezoneOffset: string;
 };
 
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -44,5 +58,13 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): AppCon
       user: parsed.MYSQL_USER,
       password: parsed.MYSQL_PASSWORD,
     },
+    postgres: {
+      host: parsed.POSTGRES_HOST,
+      port: parsed.POSTGRES_PORT,
+      database: parsed.POSTGRES_DATABASE,
+      user: parsed.POSTGRES_USER,
+      password: parsed.POSTGRES_PASSWORD,
+    },
+    legacyTimezoneOffset: parsed.LEGACY_TIMEZONE_OFFSET,
   };
 }

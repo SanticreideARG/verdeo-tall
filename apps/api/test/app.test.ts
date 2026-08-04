@@ -20,6 +20,14 @@ const config: AppConfig = {
     user: 'verdeo',
     password: 'secret',
   },
+  postgres: {
+    host: 'postgres',
+    port: 5432,
+    database: 'verdeo_messaging',
+    user: 'verdeo',
+    password: 'secret',
+  },
+  legacyTimezoneOffset: '-03:00',
 };
 
 const conversation: ConversationSummary = {
