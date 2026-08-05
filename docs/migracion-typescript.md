@@ -1,6 +1,6 @@
 # Migración incremental a TypeScript
 
-Guía complementaria: [instructivo operativo completo](instructivo-operativo.md).
+Documentación complementaria: [manual breve de Verdeo](instructivo-operativo.md) y [runbook técnico](runbook-operativo.md).
 
 ## Decisión
 
