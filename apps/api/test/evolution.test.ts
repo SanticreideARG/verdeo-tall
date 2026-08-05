@@ -36,6 +36,7 @@ const config: AppConfig = {
     user: 'verdeo',
     password: 'secret',
   },
+  conversationReadSource: 'mysql',
   legacyTimezoneOffset: '-03:00',
 };
 

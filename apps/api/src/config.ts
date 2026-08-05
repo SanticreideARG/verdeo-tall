@@ -17,6 +17,7 @@ const environmentSchema = z.object({
   POSTGRES_DATABASE: z.string().min(1),
   POSTGRES_USER: z.string().min(1),
   POSTGRES_PASSWORD: z.string().min(1),
+  CONVERSATION_READ_SOURCE: z.enum(['mysql', 'postgres']).default('mysql'),
   LEGACY_TIMEZONE_OFFSET: z.string().regex(/^[+-]\d{2}:\d{2}$/).default('-03:00'),
 });
 
@@ -41,6 +42,7 @@ export type AppConfig = {
     user: string;
     password: string;
   };
+  conversationReadSource: z.infer<typeof environmentSchema>['CONVERSATION_READ_SOURCE'];
   legacyTimezoneOffset: string;
 };
 
@@ -68,6 +70,7 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): AppCon
       user: parsed.POSTGRES_USER,
       password: parsed.POSTGRES_PASSWORD,
     },
+    conversationReadSource: parsed.CONVERSATION_READ_SOURCE,
     legacyTimezoneOffset: parsed.LEGACY_TIMEZONE_OFFSET,
   };
 }

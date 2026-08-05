@@ -3,12 +3,15 @@ import { loadConfig } from './config.js';
 import { createMySqlPool } from './infrastructure/mysql.js';
 import { createPostgresPool } from './infrastructure/postgres.js';
 import { MySqlConversationRepository } from './modules/conversations/mysql-conversation-repository.js';
+import { PostgresConversationRepository } from './modules/conversations/postgres-conversation-repository.js';
 import { PostgresEvolutionWebhookService } from './modules/evolution/evolution-webhook-service.js';
 
 const config = loadConfig();
 const pool = createMySqlPool(config.mysql);
 const postgresPool = createPostgresPool(config.postgres);
-const conversationRepository = new MySqlConversationRepository(pool);
+const conversationRepository = config.conversationReadSource === 'postgres'
+  ? new PostgresConversationRepository(postgresPool)
+  : new MySqlConversationRepository(pool);
 const evolutionWebhookHandler = new PostgresEvolutionWebhookService(postgresPool);
 const app = buildApp({
   config,
@@ -17,6 +20,11 @@ const app = buildApp({
   postgresPool,
   evolutionWebhookHandler,
 });
+
+app.log.info(
+  { source: config.conversationReadSource },
+  'conversation read repository selected',
+);
 
 const shutdown = async (signal: string): Promise<void> => {
   app.log.info({ signal }, 'shutdown requested');

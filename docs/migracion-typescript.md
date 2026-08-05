@@ -46,6 +46,12 @@ Evolution API 2.2.3 envía por la red privada de Docker los eventos `MESSAGES_UP
 
 Los replays integrados comprobaron `401` para secretos inválidos, `202` para eventos nuevos y `200` para duplicados. También se verificó el recorrido real Evolution → red Docker → API → PostgreSQL. Los datos sintéticos fueron eliminados al terminar la prueba. No hay instancias de WhatsApp activas en el entorno local, por lo que la ingesta permanece en modo sombra hasta conectar una.
 
+## Cuarto corte implementado
+
+`GET /v1/conversations` puede leer desde MySQL o PostgreSQL mediante `CONVERSATION_READ_SOURCE`, con MySQL como valor seguro predeterminado. El repositorio PostgreSQL conserva filtros, estados del contrato legado y paginación por cursor, y obtiene contacto y último mensaje desde el modelo normalizado. El contrato amplía sus canales válidos con `email` e `internal`.
+
+La validación local activó PostgreSQL temporalmente, comparó las primeras 100 conversaciones contra MySQL y obtuvo igualdad semántica completa. Los 142 identificadores importados también coinciden actualmente. La API quedó restaurada en modo MySQL al finalizar; la feature flag no autoriza por sí sola el corte productivo.
+
 ## Reglas de transición
 
 - Una sola fuente de verdad por entidad y fase.
@@ -55,6 +61,7 @@ Los replays integrados comprobaron `401` para secretos inválidos, `202` para ev
 - Backfill repetible y verificable por conteos y checksums.
 - Los historiales JSON heredados solo pueden crecer por append hasta el cutover; reordenarlos invalidaría sus referencias posicionales.
 - Cambios de tráfico reversibles desde Nginx.
+- Cambios de repositorio reversibles con `CONVERSATION_READ_SOURCE`.
 
 ## Deuda de seguridad durante la transición
 

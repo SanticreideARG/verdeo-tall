@@ -70,6 +70,7 @@ DB_PASSWORD=VALOR_UNICO
 POSTGRES_DATABASE=verdeo_messaging
 POSTGRES_USER=verdeo_user
 POSTGRES_PASSWORD=VALOR_UNICO
+CONVERSATION_READ_SOURCE=mysql
 
 INTERNAL_API_TOKEN=VALOR_ALEATORIO_DE_32_O_MAS_CARACTERES
 EVOLUTION_API_KEY=VALOR_ALEATORIO_DE_32_O_MAS_CARACTERES
@@ -340,6 +341,34 @@ LIMIT 5;
 
 En la validación inicial del repositorio se reconciliaron 142 conversaciones, 142 contactos y 528 mensajes. Estos números son una referencia histórica, no una constante: deben crecer si MySQL recibe datos nuevos.
 
+### 7.1 Conmutar la lectura de conversaciones
+
+`GET /v1/conversations` dispone de dos repositorios intercambiables:
+
+- `CONVERSATION_READ_SOURCE=mysql`: comportamiento predeterminado y rollback inmediato;
+- `CONVERSATION_READ_SOURCE=postgres`: consulta el esquema normalizado, participantes y último mensaje sin leer el JSON histórico.
+
+Después de reconciliar el backfill, habilitar PostgreSQL en `.env` y recrear sólo la API:
+
+```powershell
+# Editar .env: CONVERSATION_READ_SOURCE=postgres
+docker compose -f $compose --env-file $dotenv up -d --force-recreate typescript-api
+Invoke-RestMethod 'http://localhost:3000/v1/ready'
+docker logs --tail 30 verdeo_typescript_api
+```
+
+El log debe incluir `conversation read repository selected` con `source=postgres`. Probar paginación, filtros y consumidores antes de mantener el cambio.
+
+Para volver inmediatamente a MySQL:
+
+```powershell
+# Editar .env: CONVERSATION_READ_SOURCE=mysql
+docker compose -f $compose --env-file $dotenv up -d --force-recreate typescript-api
+Invoke-RestMethod 'http://localhost:3000/v1/ready'
+```
+
+La validación del cuarto corte comparó 100 conversaciones de ambos repositorios, excluyendo el identificador interno, y obtuvo igualdad semántica completa. Los 142 registros importados conservan además el mismo identificador actual. Esto valida el conjunto local, pero no reemplaza una ventana de observación antes del corte productivo.
+
 ## 8. Pruebas antes de cada entrega
 
 Ejecutar las pruebas TypeScript en un contenedor temporal de Node.js 22. El código se monta como sólo lectura y se copia dentro del contenedor para que `npm ci` no mezcle módulos de Windows y Linux en el repositorio:
@@ -604,7 +633,7 @@ No cambiar las lecturas de mensajería a PostgreSQL solamente porque el backfill
 - reconciliación automatizada MySQL/PostgreSQL;
 - métricas y alertas para ingesta y outbox;
 - un consumidor del outbox con reintentos y *dead-letter handling*;
-- repositorios de lectura PostgreSQL detrás de una *feature flag*;
+- repositorios de lectura PostgreSQL detrás de una *feature flag* (implementado; falta observación productiva);
 - pruebas de carga con el volumen esperado de conversaciones;
 - backup y restauración ensayados;
 - procedimiento de rollback escrito y probado.

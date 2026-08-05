@@ -29,7 +29,7 @@ Host Windows
 
 Todos los contenedores comparten la red Compose `verdeo_net`. Se comunican por nombre de servicio.
 
-La API TypeScript comprueba MySQL y PostgreSQL en readiness. Al iniciar aplica las migraciones SQL pendientes. MySQL sigue atendiendo las lecturas del contrato `/v1/conversations`; PostgreSQL conserva el backfill reconciliado hasta que se implemente la ingesta idempotente y se autorice el cambio de fuente.
+La API TypeScript comprueba MySQL y PostgreSQL en readiness. Al iniciar aplica las migraciones SQL pendientes. El contrato `/v1/conversations` dispone de repositorios MySQL y PostgreSQL seleccionables mediante `CONVERSATION_READ_SOURCE`; MySQL permanece como valor predeterminado hasta que se autorice el cambio de fuente. PostgreSQL conserva el backfill reconciliado y recibe la ingesta idempotente de Evolution en modo sombra.
 
 Evolution API entrega eventos de mensajes directamente a la API TypeScript dentro de `verdeo_net`. Los eventos se escriben en `messaging.ingestion_events`, actualizan el modelo normalizado y generan `messaging.outbox_events` en una única transacción. La outbox todavía no tiene publicador: permanece como frontera durable para el siguiente corte de automatizaciones.
 

@@ -1,4 +1,10 @@
-export const conversationChannels = ['whatsapp', 'messenger', 'instagram'] as const;
+export const conversationChannels = [
+  'whatsapp',
+  'messenger',
+  'instagram',
+  'email',
+  'internal',
+] as const;
 export const conversationStatuses = ['abierta', 'cerrada', 'esperando'] as const;
 
 export type ConversationChannel = (typeof conversationChannels)[number];
